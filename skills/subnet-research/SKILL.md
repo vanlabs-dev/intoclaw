@@ -44,12 +44,22 @@ This skill shares trigger phrases with three other skills:
 
 ## Prerequisites
 
-This skill requires API keys from two other skills — no new keys needed:
+This skill requires two API keys. It does **not** introduce new keys — it borrows from existing skills.
 
-- **TAOSTATS_API_KEY** — must be set in `skills/chain-metrics/.env` (or workspace root `.env` or shell env)
-- **DESEARCH_API_KEY** — must be set in `skills/desearch/.env` (or workspace root `.env` or shell env)
+| Key | Where to get it | Where to set it |
+|---|---|---|
+| `TAOSTATS_API_KEY` | [dash.taostats.io](https://dash.taostats.io) | Any `.env` file the script can find (see below) |
+| `DESEARCH_API_KEY` | [desearch.ai](https://desearch.ai) | Any `.env` file the script can find (see below) |
 
-Both chain-metrics and desearch skills should be installed first. If the user hasn't set up their keys yet, walk them through it before running research.
+**How the script finds keys:** It scans `.env` files in this order — first match wins:
+1. This skill's own directory (`skills/subnet-research/.env`)
+2. All sibling skill directories (e.g. whatever your TaoStats/Desearch skill dirs are named)
+3. Workspace root `.env`
+4. Shell environment variables
+
+So if the user already has keys set up for their chain data or search skills, this skill will find them automatically — regardless of what those skill directories are named.
+
+**If the user doesn't have keys yet:** Walk them through getting a TaoStats API key (free at dash.taostats.io) and a Desearch API key (funded account at desearch.ai). They can put both keys in a single `.env` file at the workspace root and all skills will pick them up.
 
 ---
 
@@ -65,7 +75,7 @@ Tell the user: *"Starting the broad scan — pulling live chain data and recent 
 
 Run the research script:
 ```bash
-python3 ~/.openclaw/workspace/skills/subnet-research/scripts/subnet_research.py --netuid <N>
+python3 skills/subnet-research/scripts/subnet_research.py --netuid <N>
 ```
 
 Adjust the path if the skill is installed elsewhere. The script pulls:
@@ -80,7 +90,7 @@ The script outputs structured JSON. Use it to build the report.
 
 For **comparative mode** (multiple subnets):
 ```bash
-python3 ~/.openclaw/workspace/skills/subnet-research/scripts/subnet_research.py --netuid 19 --compare 1,33
+python3 skills/subnet-research/scripts/subnet_research.py --netuid 19 --compare 1,33
 ```
 
 ### Phase 2 — Signal Identification
@@ -98,9 +108,11 @@ The script includes a `signals` section in its output. Key checks:
 | **Root prop elevated** | `root_prop > 0.30` | Price partly driven by protocol injection, not organic demand. Above 0.70 = artificial pump. |
 | **Capital outflow** | `net_flow_7_days < 0` or `net_flow_30_days < 0` | Money leaving the subnet. Check if temporary dip or sustained trend. |
 | **Extreme sentiment** | `fear_and_greed < 30` or `> 70` | Market extremes. Fear can mean buy opportunity; greed means caution. |
-| **Sparse dev activity** | No recent GitHub commits | Team may be inactive. Cross-reference with social presence. |
+| **Stake concentration** | Top validator holds > 50% of stake | Governance risk — one party controls the subnet. Above 80% = extreme. |
 | **Concentrated X chatter** | Few accounts dominating discussion | Organic community vs shill campaign. Note who's talking. |
 | **Pruning risk** | `in_danger = true` | Subnet at risk of deregistration. Check immunity period. |
+
+> **Note on dev activity:** The TaoStats dev activity endpoint returns GitHub data keyed by org/owner, not by netuid. Matching to a specific subnet is unreliable, so the script does not flag "no dev activity" as a signal (it would be a false positive for most subnets). The raw dev activity data is still included in the JSON output — the bot can inspect it manually if relevant.
 
 Don't just list signals — interpret them. "Root prop is at 0.45, which means about 45% of this subnet's price comes from protocol TAO injection rather than organic staking. That's in the caution zone."
 
@@ -204,7 +216,7 @@ If a 429 comes back, the script retries automatically (respects `Retry-After` he
 |---|---|---|
 | `scripts/subnet_research.py` | Multi-phase data collection + signal analysis | `python3 scripts/subnet_research.py --netuid 19` |
 
-The script outputs JSON with sections: `pool`, `subnet_info`, `validators`, `slippage`, `social`, `web_research`, `signals`. The bot reads this JSON and narrates the report.
+The script outputs JSON with sections: `pool`, `subnet_info`, `validators`, `slippage`, `social`, `web_research`, `signals`, and `display`. The `display` block contains pre-converted, human-readable values (TAO not rao, percentages not decimals, top validators with correct names and APYs) — narrate directly from it without unit conversion.
 
 CLI options:
 - `--netuid N` (required) — primary subnet to research
@@ -229,7 +241,7 @@ If the question is answerable from the workflow and signal table above, answer d
 After setting up API keys, test:
 
 ```bash
-python3 ~/.openclaw/workspace/skills/subnet-research/scripts/subnet_research.py --netuid 1 --phase broad
+python3 skills/subnet-research/scripts/subnet_research.py --netuid 1 --phase broad
 ```
 
 **Expected**: JSON output with `pool`, `subnet_info`, `validators`, `slippage`, `social`, `web_research`, and `signals` sections. If you get authentication errors, check that both `TAOSTATS_API_KEY` and `DESEARCH_API_KEY` are set.

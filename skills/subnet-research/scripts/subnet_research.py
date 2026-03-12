@@ -35,6 +35,9 @@ WORKSPACE_ROOT = SKILL_DIR.parent.parent
 TAOSTATS_BASE = "https://api.taostats.io/api"
 DESEARCH_BASE = "https://api.desearch.ai"
 
+# Unit conversion: TaoStats returns many values in rao (1 TAO = 1e9 rao)
+RAO_PER_TAO = 1_000_000_000
+
 
 # ── Environment loading ──────────────────────────────────────────────────────
 
@@ -57,13 +60,16 @@ def _load_dotenv(filepath: Path) -> None:
 
 
 def _load_all_env() -> None:
-    """Load .env from relevant skill dirs, then workspace root."""
+    """Load .env from relevant locations — scan all sibling skill dirs, then workspace root."""
     # This skill's own .env (if someone puts keys here)
     _load_dotenv(SKILL_DIR / ".env")
-    # Chain-metrics skill .env
-    _load_dotenv(SKILL_DIR.parent / "chain-metrics" / ".env")
-    # Desearch skill .env
-    _load_dotenv(SKILL_DIR.parent / "desearch" / ".env")
+    # Scan all sibling skill directories for .env files
+    # (handles any skill dir name — doesn't assume "chain-metrics" or "desearch")
+    skills_dir = SKILL_DIR.parent
+    if skills_dir.is_dir():
+        for sibling in skills_dir.iterdir():
+            if sibling.is_dir() and sibling != SKILL_DIR:
+                _load_dotenv(sibling / ".env")
     # Workspace root
     _load_dotenv(WORKSPACE_ROOT / ".env")
 
@@ -77,6 +83,26 @@ def _get_key(name: str) -> str:
         print(f"Error: {name} not set. Check .env files in skill dirs or set in environment.", file=sys.stderr)
         sys.exit(1)
     return key
+
+
+# ── Helpers ───────────────────────────────────────────────────────────────────
+
+def _safe_float(val: Any) -> Optional[float]:
+    """Safely convert to float, returning None on failure."""
+    if val is None:
+        return None
+    try:
+        return float(val)
+    except (ValueError, TypeError):
+        return None
+
+
+def _rao_to_tao(val: Any) -> Optional[float]:
+    """Convert rao to TAO. Returns None if input is None or invalid."""
+    f = _safe_float(val)
+    if f is None:
+        return None
+    return f / RAO_PER_TAO
 
 
 # ── API helpers ───────────────────────────────────────────────────────────────
@@ -197,65 +223,82 @@ def collect_social_data(netuid: int) -> Dict[str, Any]:
 
 # ── Phase 2: Signal Identification ───────────────────────────────────────────
 
+def _extract_pool_item(chain_data: Dict) -> Dict:
+    """Extract the first pool data item from chain data."""
+    pool = chain_data.get("pool", {})
+    if "data" in pool and pool["data"]:
+        return pool["data"][0] if isinstance(pool["data"], list) else pool["data"]
+    return {}
+
+
+def _extract_subnet_item(chain_data: Dict) -> Dict:
+    """Extract the first subnet info item from chain data."""
+    subnet = chain_data.get("subnet_info", {})
+    if "data" in subnet and subnet["data"]:
+        return subnet["data"][0] if isinstance(subnet["data"], list) else subnet["data"]
+    return {}
+
+
+def _extract_slippage_item(chain_data: Dict) -> Dict:
+    """Extract slippage data item."""
+    slippage_data = chain_data.get("slippage", {})
+    if "data" in slippage_data and slippage_data["data"]:
+        d = slippage_data["data"]
+        if isinstance(d, dict):
+            return d
+        if isinstance(d, list) and d:
+            return d[0]
+    return {}
+
+
 def identify_signals(chain_data: Dict, social_data: Dict) -> List[Dict[str, Any]]:
     """Evaluate data for notable signals."""
     signals = []
 
-    pool = chain_data.get("pool", {})
-    pool_item = {}
-    if "data" in pool and pool["data"]:
-        pool_item = pool["data"][0] if isinstance(pool["data"], list) else pool["data"]
-
-    subnet = chain_data.get("subnet_info", {})
-    subnet_item = {}
-    if "data" in subnet and subnet["data"]:
-        subnet_item = subnet["data"][0] if isinstance(subnet["data"], list) else subnet["data"]
+    pool_item = _extract_pool_item(chain_data)
+    subnet_item = _extract_subnet_item(chain_data)
+    slippage_item = _extract_slippage_item(chain_data)
 
     # -- Inactive subnet detection --
     price = _safe_float(pool_item.get("price"))
-    volume_24h = _safe_float(pool_item.get("tao_volume_24_hr"))
+    # volume_24h is in RAO — convert to TAO
+    volume_24h_tao = _rao_to_tao(pool_item.get("tao_volume_24_hr"))
     if price is not None and price > 1.0:
-        severity = "critical" if (volume_24h is not None and volume_24h < 1.0) else "high"
+        severity = "critical" if (volume_24h_tao is not None and volume_24h_tao < 1.0) else "high"
+        vol_msg = f" 24h volume: {volume_24h_tao:.2f} TAO." if volume_24h_tao is not None else ""
         signals.append({
             "signal": "inactive_subnet",
             "severity": severity,
             "value": price,
             "message": f"Price is {price:.4f} TAO (above 1 TAO). "
-                       f"This likely indicates an inactive/zombie subnet with no real market activity. "
-                       f"24h volume: {volume_24h:.2f} TAO." if volume_24h is not None else
-                       f"Price is {price:.4f} TAO (above 1 TAO). Likely inactive subnet.",
+                       f"This likely indicates an inactive/zombie subnet with no real market activity.{vol_msg}",
         })
 
     # -- Low liquidity / slippage risk --
-    liquidity = _safe_float(pool_item.get("liquidity"))
-    market_cap = _safe_float(pool_item.get("market_cap"))
-    slippage_data = chain_data.get("slippage", {})
-    slippage_item = {}
-    if "data" in slippage_data and slippage_data["data"]:
-        slippage_item = slippage_data["data"] if isinstance(slippage_data["data"], dict) else (
-            slippage_data["data"][0] if isinstance(slippage_data["data"], list) and slippage_data["data"] else {}
-        )
-    slippage_pct = _safe_float(slippage_item.get("slippage_percentage"))
+    # liquidity and market_cap are in RAO — convert to TAO
+    # slippage is a decimal (e.g. 0.03586 = 3.586%)
+    liquidity_tao = _rao_to_tao(pool_item.get("liquidity"))
+    market_cap_tao = _rao_to_tao(pool_item.get("market_cap"))
+    slippage_raw = _safe_float(slippage_item.get("slippage"))
+    slippage_pct = slippage_raw * 100 if slippage_raw is not None else None
 
     if slippage_pct is not None and slippage_pct > 5.0:
+        liq_msg = f" Pool liquidity: {liquidity_tao:,.2f} TAO." if liquidity_tao is not None else ""
         signals.append({
             "signal": "high_slippage",
             "severity": "high" if slippage_pct > 10.0 else "medium",
             "value": slippage_pct,
-            "message": f"Slippage on a 10 TAO buy is {slippage_pct:.2f}%. "
-                       f"Pool liquidity: {liquidity:.2f} TAO. "
-                       f"Large trades will move the price significantly."
-                       if liquidity is not None else
-                       f"Slippage on a 10 TAO buy is {slippage_pct:.2f}%. Low liquidity risk.",
+            "message": f"Slippage on a 10 TAO buy is {slippage_pct:.2f}%.{liq_msg} "
+                       f"Large trades will move the price significantly.",
         })
-    elif liquidity is not None and market_cap is not None and market_cap > 0:
-        liq_ratio = liquidity / market_cap
+    elif liquidity_tao is not None and market_cap_tao is not None and market_cap_tao > 0:
+        liq_ratio = liquidity_tao / market_cap_tao
         if liq_ratio < 0.05:
             signals.append({
                 "signal": "low_liquidity",
                 "severity": "medium",
                 "value": liq_ratio,
-                "message": f"Liquidity ({liquidity:.2f} TAO) is only {liq_ratio*100:.1f}% of market cap. "
+                "message": f"Liquidity ({liquidity_tao:,.2f} TAO) is only {liq_ratio*100:.1f}% of market cap. "
                            f"This pool is thin — expect slippage on larger trades.",
             })
 
@@ -279,22 +322,22 @@ def identify_signals(chain_data: Dict, social_data: Dict) -> List[Dict[str, Any]
                            f"not organic demand. Caution zone.",
             })
 
-    # -- Net flows --
-    net_flow_7d = _safe_float(subnet_item.get("net_flow_7_days"))
-    net_flow_30d = _safe_float(subnet_item.get("net_flow_30_days"))
-    if net_flow_7d is not None and net_flow_7d < 0:
+    # -- Net flows (values are in RAO — convert to TAO) --
+    net_flow_7d_tao = _rao_to_tao(subnet_item.get("net_flow_7_days"))
+    net_flow_30d_tao = _rao_to_tao(subnet_item.get("net_flow_30_days"))
+    if net_flow_7d_tao is not None and net_flow_7d_tao < 0:
         signals.append({
             "signal": "capital_outflow_7d",
-            "severity": "medium" if net_flow_7d > -100 else "high",
-            "value": net_flow_7d,
-            "message": f"7-day net flow is {net_flow_7d:.2f} TAO — capital is leaving this subnet.",
+            "severity": "high" if net_flow_7d_tao < -500 else ("medium" if net_flow_7d_tao < -50 else "low"),
+            "value": net_flow_7d_tao,
+            "message": f"7-day net flow is {net_flow_7d_tao:,.2f} TAO — capital is leaving this subnet.",
         })
-    if net_flow_30d is not None and net_flow_30d < 0:
+    if net_flow_30d_tao is not None and net_flow_30d_tao < 0:
         signals.append({
             "signal": "capital_outflow_30d",
-            "severity": "medium" if net_flow_30d > -500 else "high",
-            "value": net_flow_30d,
-            "message": f"30-day net flow is {net_flow_30d:.2f} TAO — sustained capital outflow.",
+            "severity": "high" if net_flow_30d_tao < -2000 else ("medium" if net_flow_30d_tao < -200 else "low"),
+            "value": net_flow_30d_tao,
+            "message": f"30-day net flow is {net_flow_30d_tao:,.2f} TAO — sustained capital outflow.",
         })
 
     # -- Fear & Greed --
@@ -319,17 +362,37 @@ def identify_signals(chain_data: Dict, social_data: Dict) -> List[Dict[str, Any]
             })
 
     # -- Dev activity --
-    dev_data = chain_data.get("dev_activity", {})
-    dev_items = dev_data.get("data", []) if isinstance(dev_data, dict) else []
-    subnet_dev = [d for d in dev_items if str(d.get("netuid")) == str(pool_item.get("netuid", ""))]
-    if not subnet_dev:
-        signals.append({
-            "signal": "no_dev_activity",
-            "severity": "medium",
-            "value": 0,
-            "message": "No recent GitHub dev activity found for this subnet. "
-                       "Team may be inactive or working in a private repo.",
-        })
+    # Note: dev_activity/latest/v1 returns repos keyed by owner/org, not by netuid.
+    # Matching by netuid is unreliable — many subnets won't appear even if active.
+    # We skip this as a signal to avoid false positives. The raw data is still in
+    # the output for the bot to inspect if relevant.
+
+    # -- Stake concentration (from validator data) --
+    validators_data = chain_data.get("validators", {})
+    validator_items = validators_data.get("data", []) if isinstance(validators_data, dict) else []
+    if validator_items and isinstance(validator_items, list):
+        stakes = [_safe_float(v.get("stake")) for v in validator_items if _safe_float(v.get("stake")) is not None]
+        if stakes:
+            total_stake = sum(stakes)
+            if total_stake > 0:
+                max_stake = max(stakes)
+                top_pct = (max_stake / total_stake) * 100
+                if top_pct > 80:
+                    signals.append({
+                        "signal": "stake_concentration_extreme",
+                        "severity": "high",
+                        "value": top_pct,
+                        "message": f"Top validator holds {top_pct:.1f}% of all stake. "
+                                   f"Extreme concentration — subnet governance is effectively single-party.",
+                    })
+                elif top_pct > 50:
+                    signals.append({
+                        "signal": "stake_concentration_high",
+                        "severity": "medium",
+                        "value": top_pct,
+                        "message": f"Top validator holds {top_pct:.1f}% of all stake. "
+                                   f"High concentration — consider diversification risk.",
+                    })
 
     # -- Social concentration --
     tweets = social_data.get("twitter", [])
@@ -345,21 +408,65 @@ def identify_signals(chain_data: Dict, social_data: Dict) -> List[Dict[str, Any]
                            f"Could be a shill campaign rather than organic community.",
             })
 
-    # -- Pruning risk --
-    # Note: pruning data is fetched globally, so we check if this netuid appears
-    # This is a lightweight check; deep dive can pull full pruning details
-
     return signals
 
 
-def _safe_float(val: Any) -> Optional[float]:
-    """Safely convert to float, returning None on failure."""
-    if val is None:
-        return None
-    try:
-        return float(val)
-    except (ValueError, TypeError):
-        return None
+def build_display_summary(chain_data: Dict, signals: List[Dict]) -> Dict[str, Any]:
+    """Build a display-ready summary with pre-converted units.
+
+    Everything in this block is human-readable — TAO not rao, percentages not decimals.
+    The bot can narrate directly from these values without unit conversion.
+    """
+    pool_item = _extract_pool_item(chain_data)
+    subnet_item = _extract_subnet_item(chain_data)
+    slippage_item = _extract_slippage_item(chain_data)
+
+    # Validators — use correct field names: "name" and "seven_day_apy"
+    validators_data = chain_data.get("validators", {})
+    validator_items = validators_data.get("data", []) if isinstance(validators_data, dict) else []
+    top_validators = []
+    for v in sorted(validator_items, key=lambda x: _safe_float(x.get("seven_day_apy")) or 0, reverse=True)[:5]:
+        top_validators.append({
+            "name": v.get("name", "unknown"),
+            "hotkey": v.get("hotkey", {}).get("ss58", "") if isinstance(v.get("hotkey"), dict) else v.get("hotkey", ""),
+            "stake_tao": round(_rao_to_tao(v.get("stake")) or 0, 2),
+            "seven_day_apy": _safe_float(v.get("seven_day_apy")),
+            "thirty_day_apy": _safe_float(v.get("thirty_day_apy")),
+            "seven_day_participation": _safe_float(v.get("seven_day_epoch_participation")),
+        })
+
+    # Slippage — API returns decimal (e.g. 0.03586), convert to percentage
+    slippage_raw = _safe_float(slippage_item.get("slippage"))
+    slippage_pct = round(slippage_raw * 100, 2) if slippage_raw is not None else None
+
+    display = {
+        "subnet_name": pool_item.get("name", "Unknown"),
+        "netuid": pool_item.get("netuid"),
+        "price_tao": _safe_float(pool_item.get("price")),
+        "root_prop": _safe_float(pool_item.get("root_prop")),
+        "fear_and_greed_index": _safe_float(pool_item.get("fear_and_greed_index")),
+        "fear_and_greed_sentiment": pool_item.get("fear_and_greed_sentiment", ""),
+        "liquidity_tao": round(_rao_to_tao(pool_item.get("liquidity")) or 0, 2),
+        "market_cap_tao": round(_rao_to_tao(pool_item.get("market_cap")) or 0, 2),
+        "volume_24h_tao": round(_rao_to_tao(pool_item.get("tao_volume_24_hr")) or 0, 2),
+        "slippage_10_tao_pct": slippage_pct,
+        "net_flow_7d_tao": round(_rao_to_tao(subnet_item.get("net_flow_7_days")) or 0, 2),
+        "net_flow_30d_tao": round(_rao_to_tao(subnet_item.get("net_flow_30_days")) or 0, 2),
+        # emission (raw on-chain int) vs projected_emission (fraction of total, e.g. 0.029 = 2.9%)
+        "emission_pct": round((_safe_float(subnet_item.get("projected_emission")) or 0) * 100, 2),
+        "active_validators": subnet_item.get("active_validators"),
+        "active_miners": subnet_item.get("active_miners"),
+        "startup_mode": pool_item.get("startup_mode"),
+        "top_validators": top_validators,
+        "signal_count": len(signals),
+        "signal_severities": {
+            "critical": sum(1 for s in signals if s["severity"] == "critical"),
+            "high": sum(1 for s in signals if s["severity"] == "high"),
+            "medium": sum(1 for s in signals if s["severity"] == "medium"),
+            "low": sum(1 for s in signals if s["severity"] == "low"),
+        },
+    }
+    return display
 
 
 # ── Phase 3: Deep Dive ───────────────────────────────────────────────────────
@@ -385,7 +492,7 @@ def deep_dive(netuid: int, signals: List[Dict]) -> Dict[str, Any]:
         result["metagraph"] = _taostats_get(f"metagraph/latest/v1?netuid={netuid}&limit=50")
         time.sleep(0.3)
 
-    if "no_dev_activity" in signal_names or "concentrated_social" in signal_names:
+    if "concentrated_social" in signal_names:
         print(f"  Deep dive: broader X search...", file=sys.stderr)
         result["twitter_latest"] = _desearch_get("twitter", {
             "query": f"bittensor subnet {netuid}",
@@ -421,18 +528,19 @@ def research_subnet(netuid: int, phase_only: Optional[str] = None, include_deep:
     output["subnet_info"] = chain_data.get("subnet_info", {})
     output["validators"] = chain_data.get("validators", {})
     output["slippage"] = chain_data.get("slippage", {})
-    output["dev_activity_match"] = _filter_dev_activity(chain_data.get("dev_activity", {}), netuid)
     output["social"] = social_data.get("twitter", {})
     output["web_research"] = social_data.get("web_research", {})
 
     if phase_only == "broad":
         output["signals"] = []
+        output["display"] = build_display_summary(chain_data, [])
         return output
 
     # Phase 2: Signal Identification
     print(f"\n--- Phase 2: Signal Identification for SN{netuid} ---", file=sys.stderr)
     signals = identify_signals(chain_data, social_data)
     output["signals"] = signals
+    output["display"] = build_display_summary(chain_data, signals)
 
     for s in signals:
         print(f"  [{s['severity'].upper()}] {s['signal']}: {s['message']}", file=sys.stderr)
@@ -446,12 +554,6 @@ def research_subnet(netuid: int, phase_only: Optional[str] = None, include_deep:
         output["deep_dive"] = deep_dive(netuid, signals)
 
     return output
-
-
-def _filter_dev_activity(dev_data: Dict, netuid: int) -> List:
-    """Extract dev activity entries for a specific netuid."""
-    items = dev_data.get("data", []) if isinstance(dev_data, dict) else []
-    return [d for d in items if str(d.get("netuid")) == str(netuid)]
 
 
 def main():
