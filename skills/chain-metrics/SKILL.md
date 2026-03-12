@@ -187,7 +187,7 @@ After installing this skill and setting the `TAOSTATS_API_KEY`, run a quick chec
 
 ```bash
 curl -s "https://api.taostats.io/api/dtao/pool/latest/v1?netuid=1&limit=1" \
-  -H "Authorization: $TAOSTATS_API_KEY" | head -c 200
+  -H "Authorization: $TAOSTATS_API_KEY" | python3 -c "import sys,json; d=json.load(sys.stdin); print('✅ chain-metrics working:', d['data'][0]['name'], d['data'][0]['price'])"
 ```
 
-**Expected:** A JSON response with pool data (price, root_prop, tao_in, alpha_in). If you get a 401 or empty response, the API key isn't set correctly.
+**Expected:** `✅ chain-metrics working:` followed by a subnet name and price. If you get a 401, the API key isn't set correctly. If you get a connection error, check your network.
