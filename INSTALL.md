@@ -1,0 +1,134 @@
+# Install Guide
+
+This file is for you, the bot. When a user picks a skill from the menu, follow these steps to actually get it installed. README.md handles discovery and explanation — this file handles the mechanics.
+
+---
+
+## Step 1 — Figure out the workspace
+
+OpenClaw skills live in:
+```
+~/.openclaw/workspace/skills/
+```
+
+Check that this directory exists. If it doesn't, the user might not have OpenClaw set up yet — point them to [openclaw.ai](https://openclaw.ai) to get started before continuing.
+
+---
+
+## Step 2 — Get the repo
+
+If the user gave you a GitHub URL, you need a local copy to work with. Options:
+
+```bash
+# Clone the full repo (recommended — gets everything, easy to update later)
+git clone https://github.com/vanlabs-dev/intoclaw.git /tmp/intoclaw
+
+# Or if git isn't available, download and extract
+curl -L https://github.com/vanlabs-dev/intoclaw/archive/refs/heads/main.zip -o /tmp/intoclaw.zip
+unzip /tmp/intoclaw.zip -d /tmp/intoclaw
+```
+
+If you already have a local copy (user pointed you at a directory), skip this.
+
+---
+
+## Step 3 — Check for conflicts
+
+Before copying anything, check `conflicts_with` in the skill's SKILL.md frontmatter. If the user already has skills installed that overlap:
+
+1. Tell them which existing skills share trigger phrases with this one
+2. Show them the specific overlapping triggers
+3. Offer: **Replace**, **Layer** (with conflict warning), or **Skip**
+
+Also check the `conflicts_with` entries across IntoClaw's own skills — if the user is installing multiple IntoClaw skills, let them know which ones share triggers and how to tell them apart (the `resolution` field explains this).
+
+---
+
+## Step 4 — Copy the skill
+
+```bash
+# Copy the skill directory to the workspace
+cp -r <repo-path>/skills/<skill-name>/ ~/.openclaw/workspace/skills/<skill-name>/
+```
+
+Tell the user what you're doing: "I'm copying the [skill name] skill into your OpenClaw workspace so your bot can use it."
+
+---
+
+## Step 5 — Set up environment (if needed)
+
+Some skills need API keys or dependencies. Check if the skill directory has a `.env.example` file.
+
+If it does:
+1. Copy it to `.env` in the skill directory (or the workspace root, depending on how the user's setup loads env vars)
+2. Walk the user through each variable — what it is, where to get it, and why it's needed
+3. Have them paste in the actual values
+4. **Never echo keys back.** Once set, confirm the variable exists without showing the value.
+
+```bash
+# Example for chain-metrics
+cp ~/.openclaw/workspace/skills/chain-metrics/.env.example ~/.openclaw/workspace/skills/chain-metrics/.env
+# Then guide user to edit and fill in their key
+```
+
+If the skill has other dependencies (like Python packages), check the SKILL.md for prerequisites and walk through those too.
+
+---
+
+## Step 6 — Activate
+
+Tell OpenClaw to pick up the new skill:
+
+```bash
+# Option 1: Ask the agent to refresh
+# Just say "refresh skills" in chat
+
+# Option 2: Restart the gateway
+openclaw gateway restart
+```
+
+Let the user know: "I'm refreshing the skill list so your bot picks up what we just installed."
+
+---
+
+## Step 7 — Verify
+
+Every IntoClaw skill has a `## Verify` section at the bottom of its SKILL.md. Run the smoke test described there to confirm the skill is working.
+
+If the test fails:
+- Check the API key is set correctly (for skills that need one)
+- Check the skill directory is in the right place
+- Check gateway was restarted
+- Walk the user through what went wrong — don't just say "it failed"
+
+If it passes, tell the user what they can now do that they couldn't before.
+
+---
+
+## Installing multiple skills
+
+If the user wants several skills, repeat steps 3–7 for each one. Don't batch-install silently — go through each skill individually so the user follows along and understands what's being added.
+
+The recommended install order for IntoClaw's core skills:
+1. **Bittensor Knowledge** — no dependencies, foundation for everything else
+2. **Chain Metrics** — needs API key, builds on the knowledge base
+3. **Desearch** — needs API key + funded account, adds search capability
+
+---
+
+## Updating skills
+
+If the user already has IntoClaw skills and the repo has been updated:
+
+```bash
+# Pull latest
+cd /tmp/intoclaw && git pull
+
+# Re-copy the updated skill
+cp -r /tmp/intoclaw/skills/<skill-name>/ ~/.openclaw/workspace/skills/<skill-name>/
+
+# Restart to pick up changes
+openclaw gateway restart
+```
+
+Tell the user what changed — don't just silently overwrite. If the skill's `.env.example` has new variables, flag those specifically.
