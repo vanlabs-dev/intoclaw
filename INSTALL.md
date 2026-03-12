@@ -62,6 +62,10 @@ Tell the user what you're doing: "I'm copying the [skill name] skill into your O
 Some skills need API keys or dependencies. Check if the skill directory has a `.env.example` file.
 
 If it does:
+
+**First, check if the keys already exist.** Scripts look for `.env` files in this order: the skill's own directory → all sibling skill directories → the workspace root → the shell environment. If the user already has the required keys set up in another skill (e.g. `TAOSTATS_API_KEY` in `chain-metrics/.env`), they do **not** need to set them up again — the script will find them automatically. Read the `.env.example` file — it often explains where keys are expected to come from.
+
+If the keys are **not** already available:
 1. Copy `.env.example` to `.env` in the same skill directory: `cp .env.example .env`
 2. Fill in the actual key values in the `.env` file
 3. Walk the user through each variable — what it is, where to get it, and why it's needed
@@ -74,8 +78,6 @@ cp .env.example .env
 # Then edit .env and add the real key:
 #   TAOSTATS_API_KEY=the_actual_key
 ```
-
-Scripts look for `.env` in the skill directory first, then the workspace root, then fall back to the shell environment. This works reliably in subshells and agent contexts where shell profile exports may not persist.
 
 If the skill has other dependencies (like Python packages), check the SKILL.md for prerequisites and walk through those too.
 
@@ -117,8 +119,9 @@ If the user wants several skills, repeat steps 3–7 for each one. Don't batch-i
 
 The recommended install order for IntoClaw's core skills:
 1. **Bittensor Knowledge** — no dependencies, foundation for everything else
-2. **Chain Metrics** — needs API key, builds on the knowledge base
-3. **Desearch** — needs API key + funded account, adds search capability
+2. **Chain Metrics** — needs TaoStats API key, builds on the knowledge base
+3. **Desearch** — needs Desearch API key, adds web + X/Twitter search
+4. **Subnet Research** — uses TaoStats and Desearch API keys (if you haven't already set up API keys for Chain Metrics and Desearch, you'll need to do that first — but if those keys are already in place, this skill picks them up automatically with no extra setup)
 
 ---
 
