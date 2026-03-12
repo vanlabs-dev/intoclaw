@@ -6,6 +6,9 @@ conflicts_with:
   - skill: bittensor-knowledge
     triggers: ["subnet", "emissions", "metagraph", "staking"]
     resolution: "chain-metrics handles live data queries and API lookups. bittensor-knowledge handles conceptual and architectural questions."
+  - skill: subnet-research
+    triggers: ["check subnet", "subnet health"]
+    resolution: "chain-metrics handles specific live data lookups (single endpoint). subnet-research produces full multi-source research reports."
 ---
 
 # Chain Metrics

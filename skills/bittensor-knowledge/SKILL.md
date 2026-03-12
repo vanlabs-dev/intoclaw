@@ -9,6 +9,9 @@ conflicts_with:
   - skill: desearch
     triggers: ["research subnet"]
     resolution: "bittensor-knowledge provides foundational knowledge. desearch searches the web and X/Twitter for real-time info."
+  - skill: subnet-research
+    triggers: ["research subnet", "subnet analysis"]
+    resolution: "subnet-research produces structured multi-source research reports. bittensor-knowledge answers conceptual questions about how subnets work."
 ---
 
 # Bittensor Knowledge Base
