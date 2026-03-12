@@ -6,7 +6,7 @@ Based on official pattern from taostat/awesome-taostats-api-examples/python/apib
 Features:
 - Auto retry on 429 (respects Retry-After header)
 - Pagination handling
-- Key loaded from TAOSTATS_API_KEY env var
+- Key loaded from .env file (skill dir, then workspace root) or TAOSTATS_API_KEY env var
 """
 
 import requests
@@ -14,15 +14,50 @@ import json
 import time
 import sys
 import os
+from pathlib import Path
 from typing import Optional, Dict, Any, List
 
 
+SCRIPT_DIR = Path(__file__).resolve().parent
+SKILL_DIR = SCRIPT_DIR.parent
+
+
+def _load_dotenv(filepath: Path) -> None:
+    """Load key=value pairs from a .env file into os.environ. No external deps."""
+    if not filepath.is_file():
+        return
+    with open(filepath) as f:
+        for line in f:
+            line = line.strip()
+            if not line or line.startswith("#"):
+                continue
+            if "=" not in line:
+                continue
+            key, _, value = line.partition("=")
+            key = key.strip()
+            value = value.strip().strip("'\"")
+            if key and key not in os.environ:
+                os.environ[key] = value
+
+
+def _load_env_files() -> None:
+    """Load .env from skill dir first, then workspace root. Existing env vars take priority."""
+    _load_dotenv(SKILL_DIR / ".env")
+    # Workspace root is 2 levels up from skill dir (skills/<skill-name>/ → repo root)
+    workspace_root = SKILL_DIR.parent.parent
+    _load_dotenv(workspace_root / ".env")
+
+
+# Load .env files before anything else
+_load_env_files()
+
+
 def load_api_key() -> str:
-    """Load TaoStats API key from TAOSTATS_API_KEY environment variable"""
+    """Load TaoStats API key from .env file or environment variable."""
     key = os.environ.get("TAOSTATS_API_KEY", "")
     if key:
         return key
-    raise RuntimeError("TAOSTATS_API_KEY not set. Export it or add to your .env file")
+    raise RuntimeError("TAOSTATS_API_KEY not set. Add it to .env in the skill directory or set it in your environment.")
 
 
 class TaostatsAPI:

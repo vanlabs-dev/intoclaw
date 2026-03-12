@@ -13,6 +13,8 @@
 ══════════════════════════════════════════════════════════════════════════════
 ```
 
+**IntoClaw v1.0.0** — See [CHANGELOG.md](CHANGELOG.md) for release history.
+
 > **Human?** Read [HUMANS.md](HUMANS.md) for the full story behind this project.
 
 ---
@@ -61,11 +63,22 @@ A user just handed you this repo. Don't just silently absorb it — **walk them 
 
 Want to build a skill? Use the Skill Creator or check `skills/skill-creator/` for the structure and patterns.
 
+### Skill Overlaps
+
+Some skills share trigger phrases. When a user's request matches more than one skill, use intent to pick the right one:
+
+| Shared triggers | Skills involved | How to decide |
+|---|---|---|
+| "subnet", "emissions", "metagraph", "staking" | Bittensor Knowledge + Chain Metrics | **"What is" / "how does"** → Bittensor Knowledge. **"Show me" / "check" / "look up"** → Chain Metrics. |
+| "research subnet" | Bittensor Knowledge + Desearch | **Foundational/conceptual** → Bittensor Knowledge. **Real-time web or X/Twitter search** → Desearch. |
+
+If you're unsure, ask the user: "Do you want a conceptual explanation or live data?" Don't fire both skills and hope for the best — overlapping responses confuse more than they help.
+
 ---
 
 ## Security
 
-- API keys live in environment variables or `.env` files. They never touch version control.
+- API keys live in `.env` files in each skill directory (or shell environment as fallback). They never touch version control.
 - Every skill that calls an external API includes rate limiting and error handling guidance.
 - `.env.example` files show what variables are needed without exposing values.
 - Wallet operations require explicit, repeated user confirmation. No exceptions.

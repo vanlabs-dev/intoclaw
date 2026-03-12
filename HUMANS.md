@@ -15,6 +15,12 @@
 
 **Bittensor skills for OpenClaw bots, built by [IntoTAO](https://intotao.app).**
 
+## Quick Start
+
+Drop this link in your OpenClaw bot's chat — it handles the rest:
+
+`https://github.com/vanlabs-dev/intoclaw`
+
 ## Why this exists
 
 More and more people in the Bittensor community are running [OpenClaw](https://openclaw.ai) personal bots — asking questions about the network, looking up subnet data, even setting up miners through chat. But getting a bot from "basic install" to "actually useful for Bittensor" takes real work. Domain knowledge, API integrations, chain tooling, understanding of how subnets actually function.
@@ -37,19 +43,9 @@ Point your bot at this repo and it walks you through what's available, helps you
 4. Choose what to install — the bot walks you through each one
 5. Done. You've got a smarter bot *and* you learned something along the way
 
-## The core skills
+## What's in the box
 
-These three are the foundation. You can skip them, but you probably shouldn't.
-
-**Bittensor Knowledge** — Everything the bot needs to actually understand Bittensor. Network architecture, Yuma consensus, staking, subnet mechanics, ecosystem context. No API keys, no dependencies. Just knowledge.
-
-**Chain Metrics** — Plugs your bot into live on-chain data using BTCLI and the TaoStats API. Subnet performance, validator and miner stats, staking positions, real-time network health. Has dependencies (BTCLI, TaoStats API key) — the bot walks you through installing and configuring all of it.
-
-**Desearch** — Gives your bot decentralized web search and X/Twitter data through the Desearch subnet. Fast, cheap, and surprisingly powerful. Requires a Desearch API key — the bot helps you get one and set it up.
-
-## Utility skills
-
-**Skill Creator** — A meta-skill for building more skills. Whether you want to create a personal skill for your own bot or contribute one to the IntoClaw repo, this skill guides the process and makes sure the result follows the same structure and quality bar as everything else in here. It's also a good reference if you just want to understand how skills are built.
+IntoClaw ships with skills covering Bittensor domain knowledge, live chain data, and decentralized web search — plus a utility skill for building your own. The full skill registry (descriptions, prerequisites, status) lives in [README.md](README.md), which is also what your bot reads on first contact. Check there for the current list and details.
 
 ## Contributing
 

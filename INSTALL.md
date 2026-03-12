@@ -34,13 +34,15 @@ If you already have a local copy (user pointed you at a directory), skip this.
 
 ## Step 3 — Check for conflicts
 
+> ⚠️ **This step is NOT optional.** Skipping conflict checks leads to overlapping triggers, where multiple skills fire on the same phrase and produce confusing, contradictory, or duplicate responses. The user ends up getting a knowledge explanation when they wanted live data, or a web search when they wanted foundational context. Always check before installing.
+
 Before copying anything, check `conflicts_with` in the skill's SKILL.md frontmatter. If the user already has skills installed that overlap:
 
 1. Tell them which existing skills share trigger phrases with this one
-2. Show them the specific overlapping triggers
+2. Show them the specific overlapping triggers and the `resolution` field that explains how to tell them apart
 3. Offer: **Replace**, **Layer** (with conflict warning), or **Skip**
 
-Also check the `conflicts_with` entries across IntoClaw's own skills — if the user is installing multiple IntoClaw skills, let them know which ones share triggers and how to tell them apart (the `resolution` field explains this).
+Also check the `conflicts_with` entries across IntoClaw's own skills — if the user is installing multiple IntoClaw skills, let them know which ones share triggers and how to tell them apart. For example, "subnet emissions" could trigger both bittensor-knowledge (conceptual explanation) and chain-metrics (live data lookup). The `resolution` field in each skill's frontmatter tells you which skill is the right fit based on the user's intent.
 
 ---
 
@@ -60,18 +62,20 @@ Tell the user what you're doing: "I'm copying the [skill name] skill into your O
 Some skills need API keys or dependencies. Check if the skill directory has a `.env.example` file.
 
 If it does:
-1. Set the variable as a shell export so it's available immediately: `export TAOSTATS_API_KEY=the_actual_key`
-2. Then add it to the user's shell profile (`~/.bashrc`, `~/.zshrc`, etc.) so it persists across sessions
+1. Copy `.env.example` to `.env` in the same skill directory: `cp .env.example .env`
+2. Fill in the actual key values in the `.env` file
 3. Walk the user through each variable — what it is, where to get it, and why it's needed
-4. **Never echo keys back.** Once set, confirm the variable exists without showing the value.
+4. **Never echo keys back.** Once set, confirm the file exists without showing the value.
 
 ```bash
 # Example for chain-metrics
-export TAOSTATS_API_KEY=the_actual_key
-echo 'export TAOSTATS_API_KEY=the_actual_key' >> ~/.bashrc
+cd ~/.openclaw/workspace/skills/chain-metrics
+cp .env.example .env
+# Then edit .env and add the real key:
+#   TAOSTATS_API_KEY=the_actual_key
 ```
 
-The `.env.example` file documents which variables are needed — it's a reference, not something you copy. The actual keys live in the user's shell environment.
+Scripts look for `.env` in the skill directory first, then the workspace root, then fall back to the shell environment. This works reliably in subshells and agent contexts where shell profile exports may not persist.
 
 If the skill has other dependencies (like Python packages), check the SKILL.md for prerequisites and walk through those too.
 

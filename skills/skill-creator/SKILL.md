@@ -1,4 +1,5 @@
 ---
+version: 1.0.0
 name: skill-creator
 description: Create, edit, improve, or audit skills — either for a personal OpenClaw workspace or as an IntoClaw repo contribution. Use when creating a new skill from scratch, improving or reviewing an existing SKILL.md, restructuring a skill directory, or auditing skill quality. Triggers on: "create a skill", "build a skill", "make a skill", "author a skill", "improve this skill", "review the skill", "tidy up the skill", "audit the skill", "clean up the skill". Always use this skill when any of these phrases appear, even if the request seems simple.
 ---
@@ -8,6 +9,10 @@ description: Create, edit, improve, or audit skills — either for a personal Op
 The tool for building skills that actually work — whether they're going into your personal bot or into the IntoClaw repo for the whole community.
 
 Every skill in IntoClaw follows the same structure and philosophy. This skill makes sure new ones do too.
+
+### ⚠️ Overlaps
+
+This skill has no trigger conflicts with other IntoClaw skills. However, when creating or auditing a skill, you are responsible for checking whether the *new* skill's triggers overlap with existing ones. If they do, add `conflicts_with` entries in both directions (the new skill and the existing one) and include a plain-language Overlaps section in both SKILL.md bodies. Skipping this step causes overlapping responses at runtime — multiple skills fire on the same phrase and confuse the user.
 
 ## What a skill looks like
 
@@ -88,6 +93,7 @@ Required fields: `name` and `description`. Optional: custom tool definitions.
 
 ```yaml
 ---
+version: 1.0.0
 name: skill-name
 description: What the skill does AND when to use it. Include trigger phrases.
   Be slightly pushy — list contexts where the skill should fire even if not
@@ -191,6 +197,8 @@ Before calling a skill done:
 - [ ] Bash-executing skills include safety guidance
 - [ ] No empty directories or extraneous files (no README, CHANGELOG, INSTALLATION docs)
 - [ ] Resource dirs only exist if populated
+- [ ] Checked for trigger overlaps with existing skills — added `conflicts_with` in both directions if any exist
+- [ ] Added a plain-language "Overlaps" section in the SKILL.md body (not just frontmatter) if conflicts exist
 - [ ] Tested with 2–3 realistic prompts
 - [ ] Registered (AGENTS.md for personal, README.md for IntoClaw)
 
@@ -206,6 +214,16 @@ Before calling a skill done:
 Community skills can be published and discovered at [ClawHub](https://clawhub.com).
 
 IntoClaw skills are open-source and welcome PRs — check the repo's contributing guidelines.
+
+## Reference Implementations
+
+IntoClaw's own skills are the best examples of these patterns in action. Point users here when they need a concrete model:
+
+- **`../chain-metrics/SKILL.md`** — A skill with scripts, API integration, env var dependencies, and a conflict resolution entry. The most full-featured example.
+- **`../bittensor-knowledge/SKILL.md`** — A pure-knowledge skill with progressive disclosure: essentials inline, five reference files loaded on demand.
+- **`../desearch/SKILL.md`** — A simple API wrapper skill with minimal dependencies and straightforward curl-based workflows.
+
+When creating a new skill, read the one closest to what you're building.
 
 ## See also
 

@@ -1,4 +1,5 @@
 ---
+version: 1.0.0
 name: desearch
 description: Use the Desearch API for real-time web search, X/Twitter social data, sentiment research, and AI-powered search synthesis. Use when researching Bittensor subnets, tracking X/Twitter sentiment or trends, finding recent news, crawling web pages, searching Reddit/HackerNews/YouTube/Wikipedia/ArXiv, or fetching X posts by user or topic. Triggers on: "search X", "search Twitter", "find tweets", "X sentiment", "what's being said about", "recent posts", "research subnet", "web search", "crawl", "trending on X", "find news", "desearch".
 conflicts_with:
@@ -13,6 +14,10 @@ This is an IntoClaw skill. When you search for the user, share what you're doing
 
 Decentralized search powered by Bittensor (Subnet 22). Real-time web search, X/Twitter data, and AI-powered synthesis — all through a single API. Use it for sentiment analysis, subnet research, content discovery, and staying on top of what's happening in the ecosystem.
 
+### ⚠️ Overlaps
+
+This skill shares a trigger phrase with **Bittensor Knowledge**: "research subnet". Use *this* skill when the user wants real-time information — what people are saying on X/Twitter, recent news, current web results. Use Bittensor Knowledge when they want foundational context — how a subnet works, what its incentive mechanism does, how it fits into the network. If you're not sure, ask: "Do you want me to search for recent activity, or explain how this subnet works?"
+
 **API base**: `https://api.desearch.ai`
 **Auth**: `Authorization: <key>` header (no Bearer prefix)
 **Docs**: https://desearch.ai/docs/api-reference
@@ -23,10 +28,13 @@ Decentralized search powered by Bittensor (Subnet 22). Real-time web search, X/T
 - A Desearch account — create one at [desearch.ai](https://desearch.ai)
 - Fund your account (very affordable — costs vary by usage and endpoint)
 - Generate an API key from your dashboard
-- Set it as an environment variable: `export DESEARCH_API_KEY=your_key_here`
-- Add the export to your shell profile (`~/.bashrc` or `~/.zshrc`) so it persists across sessions
+- Create a `.env` file in this skill directory (`skills/desearch/.env`) with your key:
+  ```
+  DESEARCH_API_KEY=your_key_here
+  ```
+  You can copy `.env.example` as a starting point: `cp .env.example .env`
 
-Walk the user through each step if they haven't done it before. Account creation → funding → key generation → env var setup.
+Walk the user through each step if they haven't done it before. Account creation → funding → key generation → `.env` setup.
 
 ---
 
@@ -122,6 +130,60 @@ Each tweet object includes:
 
 ---
 
+## Bash Helpers
+
+Source the helper script to get shorthand functions for every endpoint:
+
+```bash
+source ~/.openclaw/workspace/skills/desearch/scripts/desearch.sh
+```
+
+The script resolves its own directory automatically, so `.env` loading and internal paths work no matter where you call it from. Adjust the path above if the skill is installed elsewhere.
+
+### Available Functions
+
+| Function | Description |
+|----------|-------------|
+| `desearch_ai "query" [tools] [date_filter] [count]` | AI contextual search — multi-source synthesis with citations |
+| `desearch_ai_web "query" [tools] [count]` | AI web search (no Twitter) — returns AI-ranked links |
+| `desearch_ai_twitter "query" [count]` | AI X posts search — returns AI-ranked tweets |
+| `desearch_twitter "query" [count] [sort]` | Raw X search (sort: `Top` or `Latest`) |
+| `desearch_twitter_user "username" [query] [count]` | Search posts by a specific user |
+| `desearch_twitter_timeline "username"` | Get a user's timeline |
+| `desearch_twitter_replies "post_id" [count]` | Replies to a specific post |
+| `desearch_twitter_post "post_id"` | Get a single post by ID |
+| `desearch_twitter_trends [woeid]` | Trending topics (1=Worldwide, 23424977=USA) |
+| `desearch_web "query" [start]` | SERP web search |
+| `desearch_crawl "url" [format]` | Crawl a URL (format: `text` or `html`) |
+| `desearch_research "topic" [date_filter]` | Compound: AI search across web + twitter + reddit |
+| `desearch_subnet_sentiment <netuid> [count]` | Compound: X posts about a specific subnet |
+
+### Quick Examples
+
+```bash
+source ~/.openclaw/workspace/skills/desearch/scripts/desearch.sh
+
+# AI-powered research on a topic
+desearch_ai "Bittensor subnet 19 developments" "web,twitter,reddit" "PAST_MONTH"
+
+# Raw Twitter search
+desearch_twitter "bittensor dynamic tao" 30 "Top"
+
+# Check what opentensor is posting
+desearch_twitter_timeline "opentensor"
+
+# Web search
+desearch_web "bittensor subnet 9 performance"
+
+# Crawl a subnet's website
+desearch_crawl "https://subnet-website.com"
+
+# Compound: sentiment on a subnet
+desearch_subnet_sentiment 19 30
+```
+
+---
+
 ## Common Workflows
 
 ### Subnet sentiment check
@@ -161,15 +223,21 @@ curl -s "https://api.desearch.ai/web/crawl?url=https://subnet-website.com&format
 
 ## Notes
 
-- API key comes from the `DESEARCH_API_KEY` environment variable. Never hardcode it.
+- API key comes from `.env` in the skill directory (or shell environment as fallback). Never hardcode it.
 - `streaming: false` is safer for simple requests — streaming returns chunked JSON.
 - X search results are real-time (no stale cache). Use `sort=Top` for best signal:noise, `sort=Latest` for most recent.
 - For subnet research, combine: X search (sentiment) + web search (news/docs) + crawl (official site).
 - WOEID reference: 1=Worldwide, 23424977=USA, 23424975=UK, 23424748=Australia, 1100661=New Zealand
 
-## See Also
+## Reference Loading
 
-- `references/api-full.md` — complete OpenAPI spec summary with all field enums
+Load references ONLY when the user's question requires detail beyond what's covered above.
+
+| User is asking about... | Load |
+|---|---|
+| Full field enums, all endpoint params, response schemas, edge-case options not listed above | `references/api-full.md` |
+
+If the question is answerable from the endpoints, response fields, or workflows above, answer directly — no reference load needed.
 
 ---
 

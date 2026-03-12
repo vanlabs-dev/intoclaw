@@ -15,6 +15,13 @@ Usage:
 
 import sys
 import argparse
+from pathlib import Path
+
+# Ensure the scripts directory is on sys.path so sibling imports work
+SCRIPT_DIR = Path(__file__).resolve().parent
+if str(SCRIPT_DIR) not in sys.path:
+    sys.path.insert(0, str(SCRIPT_DIR))
+
 from taostats_client import TaostatsAPI
 
 

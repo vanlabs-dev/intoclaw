@@ -1,4 +1,5 @@
 ---
+version: 1.0.0
 name: chain-metrics
 description: Query live Bittensor on-chain data via the TaoStats REST API and MCP. Use when checking subnet pool data (price, root_prop, fear & greed index), validator APYs, stake positions, portfolio balances, metagraph state, net capital flows, transaction history, subnet emissions, deregistration risk, or any live blockchain data query. Also use for: subnet scoring/ranking, entry validation via root_prop, MCP tool calls for rich identity/summary/discord data. Triggers on: "chain metrics", "taostats", "check subnet", "validator APY", "stake balance", "root prop", "pool data", "emissions", "net flow", "metagraph", "portfolio", "check position", "fear and greed", "subnet price", "entry check". NOT for: executing transactions (use btcli), social/X search (use desearch).
 conflicts_with:
@@ -13,6 +14,10 @@ This is an IntoClaw skill. When you pull data for the user, don't just dump numb
 
 Live Bittensor chain data powered by [TaoStats](https://taostats.io). The data workhorse — numbers, history, positions, emissions, validator yields.
 
+### ⚠️ Overlaps
+
+This skill shares trigger phrases with **Bittensor Knowledge**: "subnet", "emissions", "metagraph", "staking". Use *this* skill when the user wants live numbers — current prices, APYs, balances, on-chain state. Use Bittensor Knowledge when they want conceptual explanations — "what is a subnet", "how do emissions work", "explain staking". If a request like "tell me about subnet 19's emissions" could go either way, ask the user whether they want an explanation of how emissions work or the current emission data for that subnet.
+
 **API base**: `https://api.taostats.io`
 **Auth**: `Authorization: <key>` (no Bearer prefix)
 **MCP**: `https://mcp.taostats.io?tools=data,docs,api` — same key
@@ -23,8 +28,12 @@ Live Bittensor chain data powered by [TaoStats](https://taostats.io). The data w
 
 **Prerequisites:**
 - A TaoStats API key — get one at [dash.taostats.io](https://dash.taostats.io)
-- Set it as an environment variable: `export TAOSTATS_API_KEY=your_key_here`
-- Add the export to your shell profile (`~/.bashrc` or `~/.zshrc`) so it persists across sessions
+- Create a `.env` file in this skill directory (`skills/chain-metrics/.env`) with your key:
+  ```
+  TAOSTATS_API_KEY=your_key_here
+  ```
+  You can copy `.env.example` as a starting point: `cp .env.example .env`
+- Scripts check for `.env` in the skill directory first, then the workspace root, then fall back to the shell environment
 
 Walk the user through getting their key if they don't have one. It takes a minute.
 
@@ -32,10 +41,12 @@ Walk the user through getting their key if they don't have one. It takes a minut
 
 ## Bash Helpers
 
-Source the script for convenient wrappers:
+Source the script for convenient wrappers. Use the full path so it works regardless of your working directory:
 ```bash
-source scripts/taostats.sh
+source ~/.openclaw/workspace/skills/chain-metrics/scripts/taostats.sh
 ```
+
+The script resolves its own directory automatically, so all internal path references and `.env` loading work no matter where you call it from. Adjust the path above if the skill is installed elsewhere.
 
 Key functions: `taostats_pool`, `taostats_validator_yield`, `taostats_stake_balance`, `taostats_metagraph`, `taostats_subnet_info`, `taostats_entry_check`, `taostats_slippage`, and more.
 
@@ -107,7 +118,7 @@ balance_tao=$(echo "$balance_as_tao / 1000000000" | bc -l)
 
 ### Check a subnet before staking
 ```bash
-source scripts/taostats.sh
+source ~/.openclaw/workspace/skills/chain-metrics/scripts/taostats.sh
 taostats_entry_check 19           # root_prop + price + sentiment
 taostats_validator_yield 19 | jq -r '.data | sort_by(-.seven_day_apy) | .[0]'
 taostats_subnet_info 19 | jq '{net_flow_7_days, emission, projected_emission}'
@@ -167,17 +178,28 @@ claude mcp add taostats --transport http "https://mcp.taostats.io?tools=data,doc
 
 | Script | Purpose | Usage |
 |---|---|---|
-| `scripts/taostats.sh` | Bash helpers (source to use) | `source scripts/taostats.sh; taostats_pool 19` |
+| `scripts/taostats.sh` | Bash helpers (source to use) | `source ~/.openclaw/workspace/skills/chain-metrics/scripts/taostats.sh; taostats_pool 19` |
 | `scripts/taostats_client.py` | Python client (retry, pagination) | `python3 scripts/taostats_client.py dtao/pool/latest/v1?netuid=19` |
 | `scripts/balance_history.py` | Daily balance history + stake earnings | `python3 scripts/balance_history.py <coldkey> --days 30 --earnings` |
 | `scripts/valis_24hr.py` | Validator 24h stake flow (in/out) | `python3 scripts/valis_24hr.py --top 25` or `--netuid 19` |
 
-Scripts load the API key from the `TAOSTATS_API_KEY` environment variable.
+Scripts load the API key from `.env` in the skill directory, falling back to the shell environment.
 
 ## Reference Files
 
 - `references/api-endpoints.md` — all endpoints with full field lists, verified live + community script patterns
 - `references/mcp.md` — MCP tool reference and usage patterns
+
+## Reference Loading
+
+Load references ONLY when the user's question requires detail beyond what's covered above. Never load all references at once — match the reference to the question.
+
+| User is asking about... | Load |
+|---|---|
+| Specific endpoint params, response field names, pagination options, community script patterns | `references/api-endpoints.md` |
+| MCP integration, MCP tool names, setting up MCP, rich identity data | `references/mcp.md` |
+
+If the question is answerable from the endpoint table, critical fields, or workflows above, answer directly — no reference load needed.
 
 ---
 

@@ -1,14 +1,47 @@
 #!/bin/bash
 # TaoStats API Helper Functions
-# Source this file: source /path/to/skills/chain-metrics/scripts/taostats.sh
+# Source this file: source ~/.openclaw/workspace/skills/chain-metrics/scripts/taostats.sh
 
-# Load API key from environment variable
+# Resolve script and skill directories regardless of caller's working directory
+TAOSTATS_SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+TAOSTATS_SKILL_DIR="$(dirname "$TAOSTATS_SCRIPT_DIR")"
+
+# Load .env file — skill dir first, then workspace root, then fall back to env
+_taostats_load_dotenv() {
+    local envfile="$1"
+    if [ -f "$envfile" ]; then
+        while IFS= read -r line || [ -n "$line" ]; do
+            line="${line%%#*}"       # strip comments
+            line="${line#"${line%%[![:space:]]*}"}"  # trim leading whitespace
+            line="${line%"${line##*[![:space:]]}"}"  # trim trailing whitespace
+            [ -z "$line" ] && continue
+            case "$line" in *=*) ;; *) continue ;; esac
+            local key="${line%%=*}"
+            local value="${line#*=}"
+            key="${key#"${key%%[![:space:]]*}"}"
+            key="${key%"${key##*[![:space:]]}"}"
+            value="${value#"${value%%[![:space:]]*}"}"
+            value="${value%"${value##*[![:space:]]}"}"
+            value="${value#\"}" ; value="${value%\"}"
+            value="${value#\'}" ; value="${value%\'}"
+            # Only set if not already in environment
+            if [ -z "${!key+x}" ]; then
+                export "$key=$value"
+            fi
+        done < "$envfile"
+    fi
+}
+
+_taostats_load_dotenv "$TAOSTATS_SKILL_DIR/.env"
+_taostats_load_dotenv "$TAOSTATS_SKILL_DIR/../../.env"
+
+# Load API key from .env or environment variable
 _load_taostats_key() {
     if [ -n "$TAOSTATS_API_KEY" ]; then
         export TAOSTATS_API_KEY
         return 0
     fi
-    echo "⚠️  TAOSTATS_API_KEY not set. Export it or add to your .env file" >&2
+    echo "TAOSTATS_API_KEY not set. Create a .env file in $TAOSTATS_SKILL_DIR or set the variable in your environment." >&2
     return 1
 }
 

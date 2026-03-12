@@ -14,7 +14,15 @@ Output: CSV-style daily balance history + optional stake earnings summary
 
 import sys
 import json
+import os
+from pathlib import Path
 from datetime import datetime, timedelta, timezone
+
+# Ensure the scripts directory is on sys.path so sibling imports work
+SCRIPT_DIR = Path(__file__).resolve().parent
+if str(SCRIPT_DIR) not in sys.path:
+    sys.path.insert(0, str(SCRIPT_DIR))
+
 from taostats_client import TaostatsAPI
 
 

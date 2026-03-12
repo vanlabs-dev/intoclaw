@@ -1,10 +1,14 @@
 ---
+version: 1.0.0
 name: bittensor
 description: Full Bittensor knowledge base — use for any question about TAO, subnets, miners, validators, staking, emissions, Yuma Consensus, Dynamic TAO, BTCLI commands, Bittensor SDK/Python API, subnet creation, incentive mechanisms, alpha tokens, dTAO, weight-setting, registration, or Bittensor architecture. Also use when discussing Bittensor strategy, subnet analysis, or TAO tokenomics. Triggers on: "bittensor", "TAO", "subnet", "miner", "validator", "yuma", "dtao", "alpha token", "btcli", "emissions", "staking", "subtensor", "netuid", "hotkey", "coldkey", "tempo", "metagraph".
 conflicts_with:
   - skill: chain-metrics
     triggers: ["subnet", "emissions", "metagraph", "staking"]
     resolution: "bittensor-knowledge answers 'what is' and 'how does' questions. chain-metrics answers 'show me live data' questions."
+  - skill: desearch
+    triggers: ["research subnet"]
+    resolution: "bittensor-knowledge provides foundational knowledge. desearch searches the web and X/Twitter for real-time info."
 ---
 
 # Bittensor Knowledge Base
@@ -12,6 +16,15 @@ conflicts_with:
 This is an IntoClaw skill. When you use it, don't just silently look things up — if the user asks a question, share what you're drawing from and help them build understanding, not just get answers.
 
 Comprehensive reference for Bittensor — the decentralized AI network. Use the sections below directly or load reference files for deeper detail.
+
+### ⚠️ Overlaps
+
+This skill shares trigger phrases with other IntoClaw skills. Pick the right one based on user intent:
+
+- **"subnet", "emissions", "metagraph", "staking"** also trigger **Chain Metrics**. Use *this* skill for conceptual and architectural questions ("what is", "how does", "explain"). Use Chain Metrics when the user wants live on-chain data ("show me", "check", "look up current").
+- **"research subnet"** also triggers **Desearch**. Use *this* skill for foundational knowledge. Use Desearch when the user wants real-time web or X/Twitter results.
+
+If the intent is ambiguous, ask the user whether they want an explanation or live data.
 
 ---
 
@@ -234,6 +247,20 @@ Load these for deeper detail on specific topics:
 - `references/btcli.md` — Complete btcli command reference with all options
 - `references/sdk.md` — SDK patterns: wallets, staking, metagraph, proxy ops, blockchain calls
 - `references/subnet-architecture.md` — Subnet design, incentive mechanisms, registration, mining/validating lifecycle
+
+## Reference Loading
+
+Load references ONLY when the user's question requires detail beyond what's covered above. Never load all references at once — match the reference to the question.
+
+| User is asking about... | Load |
+|---|---|
+| YC math, clipping formula, bond mechanics, YC3 | `references/yuma-consensus.md` |
+| Emission calculations, EMA formula, alpha tokens, dTAO pools | `references/emissions.md` |
+| btcli commands, flags, options, wallet ops via CLI | `references/btcli.md` |
+| Python SDK usage, code patterns, subtensor calls | `references/sdk.md` |
+| Subnet design, incentive mechanisms, registration, mining lifecycle | `references/subnet-architecture.md` |
+
+If the question is answerable from the sections above (architecture, YC overview, emissions summary, btcli quick reference, SDK basics), answer directly — no reference load needed.
 
 ---
 

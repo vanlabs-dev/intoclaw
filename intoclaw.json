@@ -1,0 +1,68 @@
+{
+  "name": "intoclaw",
+  "version": "1.0.0",
+  "description": "Bittensor skill pack for OpenClaw bots",
+  "repository": "https://github.com/vanlabs-dev/intoclaw",
+  "license": "MIT",
+  "skills": [
+    {
+      "name": "bittensor-knowledge",
+      "version": "1.0.0",
+      "path": "skills/bittensor-knowledge",
+      "status": "essential",
+      "description": "Bittensor domain knowledge base covering architecture, consensus, staking, subnets, and SDK",
+      "requires_env": [],
+      "conflicts_with": [
+        {
+          "skill": "chain-metrics",
+          "triggers": ["subnet", "emissions", "metagraph", "staking"],
+          "resolution": "bittensor-knowledge answers 'what is' and 'how does' questions. chain-metrics answers 'show me live data' questions."
+        },
+        {
+          "skill": "desearch",
+          "triggers": ["research subnet"],
+          "resolution": "bittensor-knowledge provides foundational knowledge. desearch searches the web and X/Twitter for real-time info."
+        }
+      ]
+    },
+    {
+      "name": "chain-metrics",
+      "version": "1.0.0",
+      "path": "skills/chain-metrics",
+      "status": "essential",
+      "description": "Live Bittensor chain data via TaoStats REST API and MCP",
+      "requires_env": ["TAOSTATS_API_KEY"],
+      "conflicts_with": [
+        {
+          "skill": "bittensor-knowledge",
+          "triggers": ["subnet", "emissions", "metagraph", "staking"],
+          "resolution": "chain-metrics handles live data queries and API lookups. bittensor-knowledge handles conceptual and architectural questions."
+        }
+      ]
+    },
+    {
+      "name": "desearch",
+      "version": "1.0.0",
+      "path": "skills/desearch",
+      "status": "essential",
+      "description": "Decentralized web search and X/Twitter data via Desearch API",
+      "requires_env": ["DESEARCH_API_KEY"],
+      "conflicts_with": [
+        {
+          "skill": "bittensor-knowledge",
+          "triggers": ["research subnet"],
+          "resolution": "desearch searches the web and X/Twitter for real-time info. bittensor-knowledge provides foundational knowledge."
+        }
+      ]
+    },
+    {
+      "name": "skill-creator",
+      "version": "1.0.0",
+      "path": "skills/skill-creator",
+      "status": "utility",
+      "description": "Meta-skill for building, editing, and auditing OpenClaw skills",
+      "requires_env": [],
+      "conflicts_with": []
+    }
+  ]
+}
