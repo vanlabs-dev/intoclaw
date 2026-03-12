@@ -31,6 +31,10 @@ intoclaw/
     │   ├── .env.example
     │   ├── scripts/           # desearch.sh — bash helpers for all endpoints
     │   └── references/        # Full OpenAPI spec summary
+    ├── subnet-research/       # Essential — Multi-phase subnet analysis (uses TaoStats + Desearch)
+    │   ├── SKILL.md
+    │   ├── scripts/           # subnet_research.py — data collection + signal analysis
+    │   └── references/        # Research methodology, signal thresholds
     └── skill-creator/         # Utility — Meta-skill for building new skills
         ├── SKILL.md
         └── references/        # Design patterns doc
@@ -101,8 +105,8 @@ Skills that call external APIs load keys from `.env` files in the skill director
 
 | Variable | Skill | Source |
 |----------|-------|--------|
-| `TAOSTATS_API_KEY` | chain-metrics | [dash.taostats.io](https://dash.taostats.io) |
-| `DESEARCH_API_KEY` | desearch | [desearch.ai](https://desearch.ai) |
+| `TAOSTATS_API_KEY` | chain-metrics, subnet-research | [dash.taostats.io](https://dash.taostats.io) |
+| `DESEARCH_API_KEY` | desearch, subnet-research | [desearch.ai](https://desearch.ai) |
 
 **Pattern**: Copy `.env.example` to `.env` in the skill directory, fill in the key values. Scripts look for `.env` in the skill directory first, then the workspace root, then fall back to shell environment variables. This approach works reliably in subshells and agent contexts where shell profile exports may not persist.
 
@@ -248,6 +252,12 @@ These files are written *for the bot to read* when a user first hands it the rep
 |--------|----------|---------|
 | `desearch.sh` | Bash | Source for shell helpers (`desearch_ai`, `desearch_twitter`, `desearch_web`, etc.) |
 
+### Subnet Research (`skills/subnet-research/scripts/`)
+
+| Script | Language | Purpose |
+|--------|----------|---------|
+| `subnet_research.py` | Python | Multi-phase data collection (TaoStats + Desearch), signal analysis, JSON output |
+
 All scripts load API keys from `.env` in the skill directory, falling back to the workspace root, then the shell environment. No hardcoded keys.
 
 ---
@@ -264,6 +274,10 @@ curl -s "https://api.taostats.io/api/dtao/pool/latest/v1?netuid=1&limit=1" \
 # Desearch (needs DESEARCH_API_KEY)
 curl -s "https://api.desearch.ai/web?query=bittensor&start=0" \
   -H "Authorization: $DESEARCH_API_KEY" | python3 -c "import sys,json; d=json.load(sys.stdin); print('desearch OK, got', len(d) if isinstance(d,list) else 'data')"
+
+# Subnet Research (needs both keys)
+python3 ~/.openclaw/workspace/skills/subnet-research/scripts/subnet_research.py --netuid 1 --phase broad 2>/dev/null \
+  | python3 -c "import sys,json; d=json.load(sys.stdin); p=d['primary']; print('subnet-research OK:', 'pool' in p and 'social' in p)"
 
 # Bittensor Knowledge (no deps — ask the bot)
 # "What is the exact EMA smoothing factor used in the flow-based emissions model?"
