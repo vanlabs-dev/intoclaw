@@ -49,9 +49,11 @@ IntoClaw ships with skills covering Bittensor domain knowledge, live chain data,
 
 ## Contributing
 
-IntoClaw is MIT licensed and contributions are welcome.
+IntoClaw is MIT licensed and contributions are welcome. See [CONTRIBUTING.md](CONTRIBUTING.md) for the full guide.
 
-Want to add a skill? The Skill Creator (`skills/skill-creator/`) has the full structure and patterns. Use it to build your skill, then open a PR. Good skills are focused, well-explained, and don't assume the user knows everything already.
+**Quick version:** branch from `dev`, build your skill using the Skill Creator (`skills/skill-creator/`), test with a real agent, then open a PR. Good skills are focused, well-explained, and don't assume the user knows everything already.
+
+CI runs automatically on PRs to validate skill structure, frontmatter, conflict declarations, and Python syntax.
 
 ## Links
 

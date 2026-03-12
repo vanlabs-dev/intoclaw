@@ -1,0 +1,193 @@
+name: Validate Skill Pack
+
+on:
+  pull_request:
+    branches: [main, dev]
+  push:
+    branches: [dev]
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install PyYAML
+        run: pip install pyyaml
+
+      - name: Check no .env files committed
+        run: |
+          echo "Checking for .env files (only .env.example allowed)..."
+          ENVFILES=$(find skills/ -name ".env" -o -name ".env.*" ! -name ".env.example" 2>/dev/null)
+          if [ -n "$ENVFILES" ]; then
+            echo "ERROR: .env files found in skills/ (only .env.example allowed):"
+            echo "$ENVFILES"
+            exit 1
+          fi
+          echo "OK: No .env files committed."
+
+      - name: Validate SKILL.md frontmatter
+        run: |
+          python3 << 'PYEOF'
+          import os, sys, yaml
+
+          errors = []
+          required_fields = ["name", "description", "version"]
+
+          for root, dirs, files in os.walk("skills"):
+              if "SKILL.md" in files:
+                  path = os.path.join(root, "SKILL.md")
+                  with open(path) as f:
+                      content = f.read()
+
+                  # Extract YAML frontmatter
+                  if not content.startswith("---"):
+                      errors.append(f"{path}: Missing YAML frontmatter (must start with ---)")
+                      continue
+
+                  parts = content.split("---", 2)
+                  if len(parts) < 3:
+                      errors.append(f"{path}: Malformed frontmatter (missing closing ---)")
+                      continue
+
+                  try:
+                      fm = yaml.safe_load(parts[1])
+                  except yaml.YAMLError as e:
+                      errors.append(f"{path}: Invalid YAML in frontmatter: {e}")
+                      continue
+
+                  if not isinstance(fm, dict):
+                      errors.append(f"{path}: Frontmatter is not a YAML mapping")
+                      continue
+
+                  for field in required_fields:
+                      if field not in fm:
+                          errors.append(f"{path}: Missing required field '{field}'")
+
+                  # Check line count
+                  line_count = content.count("\n") + 1
+                  if line_count > 500:
+                      errors.append(f"{path}: {line_count} lines (max 500)")
+
+          if errors:
+              print("SKILL.md validation FAILED:")
+              for e in errors:
+                  print(f"  - {e}")
+              sys.exit(1)
+          else:
+              print("OK: All SKILL.md files pass validation.")
+          PYEOF
+
+      - name: Check conflict bidirectionality
+        run: |
+          python3 << 'PYEOF'
+          import os, sys, yaml
+
+          # Collect all conflicts_with declarations
+          skills = {}  # name -> list of declared conflicts
+
+          for root, dirs, files in os.walk("skills"):
+              if "SKILL.md" in files:
+                  path = os.path.join(root, "SKILL.md")
+                  with open(path) as f:
+                      content = f.read()
+
+                  if not content.startswith("---"):
+                      continue
+                  parts = content.split("---", 2)
+                  if len(parts) < 3:
+                      continue
+
+                  try:
+                      fm = yaml.safe_load(parts[1])
+                  except:
+                      continue
+
+                  if not isinstance(fm, dict):
+                      continue
+
+                  name = fm.get("name", os.path.basename(root))
+                  conflicts = fm.get("conflicts_with", [])
+                  if conflicts:
+                      skills[name] = [(c.get("skill", ""), path) for c in conflicts if isinstance(c, dict)]
+                  else:
+                      skills[name] = []
+
+          # Check bidirectionality
+          errors = []
+          for skill_name, conflicts in skills.items():
+              for target_name, source_path in conflicts:
+                  if target_name not in skills:
+                      # Target skill might use a different name field vs directory name
+                      # Skip if target not found (might be external)
+                      continue
+                  target_conflicts = [c[0] for c in skills[target_name]]
+                  if skill_name not in target_conflicts:
+                      errors.append(
+                          f"{skill_name} declares conflict with {target_name}, "
+                          f"but {target_name} does not declare conflict back with {skill_name}"
+                      )
+
+          if errors:
+              print("Conflict bidirectionality check FAILED:")
+              for e in errors:
+                  print(f"  - {e}")
+              sys.exit(1)
+          else:
+              print("OK: All conflicts are bidirectional.")
+          PYEOF
+
+      - name: Validate intoclaw.json registry
+        run: |
+          python3 << 'PYEOF'
+          import json, os, sys
+
+          with open("intoclaw.json") as f:
+              registry = json.load(f)
+
+          registered = {s["name"] for s in registry.get("skills", [])}
+          errors = []
+
+          # Check every skill directory has a registry entry
+          for item in os.listdir("skills"):
+              skill_path = os.path.join("skills", item)
+              if os.path.isdir(skill_path) and os.path.exists(os.path.join(skill_path, "SKILL.md")):
+                  if item not in registered:
+                      errors.append(f"Skill '{item}' has a SKILL.md but is not registered in intoclaw.json")
+
+          # Check every registered skill has a directory
+          for skill in registry.get("skills", []):
+              path = skill.get("path", "")
+              if not os.path.isdir(path):
+                  errors.append(f"Registered skill '{skill['name']}' points to '{path}' which doesn't exist")
+
+          if errors:
+              print("intoclaw.json validation FAILED:")
+              for e in errors:
+                  print(f"  - {e}")
+              sys.exit(1)
+          else:
+              print("OK: intoclaw.json matches skill directories.")
+          PYEOF
+
+      - name: Python syntax check
+        run: |
+          echo "Checking Python syntax in skills/..."
+          ERRORS=0
+          for f in $(find skills/ -name "*.py" 2>/dev/null); do
+            if ! python3 -c "import py_compile; py_compile.compile('$f', doraise=True)" 2>/dev/null; then
+              echo "SYNTAX ERROR: $f"
+              python3 -c "import py_compile; py_compile.compile('$f', doraise=True)" 2>&1 || true
+              ERRORS=$((ERRORS + 1))
+            fi
+          done
+          if [ $ERRORS -gt 0 ]; then
+            echo "FAILED: $ERRORS Python files have syntax errors"
+            exit 1
+          fi
+          echo "OK: All Python files pass syntax check."

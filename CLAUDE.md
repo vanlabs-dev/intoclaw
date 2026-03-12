@@ -116,6 +116,28 @@ Skills that call external APIs load keys from `.env` files in the skill director
 
 ## Development Workflow
 
+### Branch Strategy
+
+```
+skill/<name>  →  dev  →  main
+  (build)       (test)   (release)
+```
+
+- **`main`** — always stable, always releasable. Users point bots here. Don't push directly.
+- **`dev`** — active development. Build and test new skills here.
+- **`skill/<name>`** — optional feature branches off `dev` for larger skills.
+
+**Process for a new skill:**
+1. Start from `dev`: `git checkout dev && git pull origin dev`
+2. Build the skill (see steps below)
+3. Test with agents on the `dev` branch
+4. PR from `dev` → `main` using the PR template (`.github/PULL_REQUEST_TEMPLATE.md`)
+5. Tag the release: `git tag v1.x.0 && git push origin v1.x.0`
+
+**CHANGELOG pattern:** Add changes under `[Unreleased]` during development. Rename to `[x.y.z] - date` when merging to `main`.
+
+**CI:** GitHub Actions (`validate-skill.yml`) runs on PRs to `main` and `dev`. Checks frontmatter, conflict bidirectionality, line counts, Python syntax, registry consistency, and secrets.
+
 ### Adding a New Skill
 
 1. Understand what the skill does, when it triggers, what it outputs
@@ -123,8 +145,8 @@ Skills that call external APIs load keys from `.env` files in the skill director
 3. Add `scripts/`, `references/`, `assets/` only if needed
 4. Check for trigger conflicts with existing skills — add `conflicts_with` if overlap exists
 5. Add `.env.example` if the skill needs API keys
-6. Add the skill to the README.md Skill Registry table
-7. Test with 2-3 realistic prompts via `openclaw agent --message "..."`
+6. Add the skill to the README.md Skill Registry table and `intoclaw.json`
+7. Test with 2-3 realistic prompts by pointing an agent at the `dev` branch
 8. Follow the quality checklist in `skills/skill-creator/SKILL.md`
 
 ### Editing an Existing Skill
