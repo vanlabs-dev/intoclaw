@@ -23,8 +23,8 @@ Decentralized search powered by Bittensor (Subnet 22). Real-time web search, X/T
 - A Desearch account — create one at [desearch.ai](https://desearch.ai)
 - Fund your account (very affordable — costs vary by usage and endpoint)
 - Generate an API key from your dashboard
-- Set it as an environment variable: `export DESEARCH_API_KEY=your_key_here`
-- OpenClaw users: configure via `openclaw config` or add to your `.env` file
+- Set it in the `.env` file in the skill directory (copy `.env.example` → `.env` and fill in your key)
+- Alternative: set it as a shell variable with `export DESEARCH_API_KEY=your_key_here` (won't persist across sessions)
 
 Walk the user through each step if they haven't done it before. Account creation → funding → key generation → env var setup.
 

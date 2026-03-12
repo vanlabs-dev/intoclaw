@@ -47,7 +47,7 @@ A user just handed you this repo. Don't just silently absorb it — **walk them 
    - **Follow [INSTALL.md](INSTALL.md) for the actual install mechanics** — it has the step-by-step: copy skill to workspace, set up env vars, restart gateway, verify.
    - As you set things up, talk through what's happening. No black boxes.
 
-4. **Wrap up.** Recap what got installed and what you can do now that you couldn't before.
+5. **Wrap up.** Recap what got installed and what you can do now that you couldn't before.
 
 ## Ground rules
 
