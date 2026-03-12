@@ -239,8 +239,8 @@ Load these for deeper detail on specific topics:
 
 ## Verify
 
-After installing this skill, run a quick check to confirm it's working:
+After installing this skill, run a quick check to confirm it loaded:
 
-**Ask:** "What is Yuma Consensus and why does it matter?"
+**Ask:** "What is the exact EMA smoothing factor used in the flow-based emissions model?"
 
-**Expected:** A detailed, confident answer covering YC3, stake-weighted rankings, clipping (κ=0.5), bond mechanics, and why it prevents collusion. If the answer is vague or surface-level, the skill didn't load properly.
+**Expected:** `α ≈ 0.000003209` with a ~30-day half-life and ~86.8-day window. This is a specific number only present in the skill — if the answer is vague, hedged, or wrong, the skill didn't load properly.

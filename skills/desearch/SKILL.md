@@ -23,8 +23,8 @@ Decentralized search powered by Bittensor (Subnet 22). Real-time web search, X/T
 - A Desearch account — create one at [desearch.ai](https://desearch.ai)
 - Fund your account (very affordable — costs vary by usage and endpoint)
 - Generate an API key from your dashboard
-- Set it in the `.env` file in the skill directory (copy `.env.example` → `.env` and fill in your key)
-- Alternative: set it as a shell variable with `export DESEARCH_API_KEY=your_key_here` (won't persist across sessions)
+- Set it as an environment variable: `export DESEARCH_API_KEY=your_key_here`
+- Add the export to your shell profile (`~/.bashrc` or `~/.zshrc`) so it persists across sessions
 
 Walk the user through each step if they haven't done it before. Account creation → funding → key generation → env var setup.
 
@@ -179,7 +179,7 @@ After installing this skill and setting the `DESEARCH_API_KEY`, run a quick chec
 
 ```bash
 curl -s "https://api.desearch.ai/web?query=bittensor&start=0" \
-  -H "Authorization: $DESEARCH_API_KEY" | head -c 200
+  -H "Authorization: $DESEARCH_API_KEY" | python3 -c "import sys,json; d=json.load(sys.stdin); print('✅ desearch working, got', len(d) if isinstance(d,list) else 'data')"
 ```
 
-**Expected:** A JSON response with web search results. If you get a 401, the API key isn't set. If you get a 402 or payment error, the account needs funding at [desearch.ai](https://desearch.ai).
+**Expected:** `✅ desearch working, got N` (a count of results). If you get a 401, the API key isn't set. If you get a 402 or payment error, the account needs funding at [desearch.ai](https://desearch.ai). If you get a JSON decode error, check your network connection.

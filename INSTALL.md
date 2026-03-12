@@ -60,16 +60,18 @@ Tell the user what you're doing: "I'm copying the [skill name] skill into your O
 Some skills need API keys or dependencies. Check if the skill directory has a `.env.example` file.
 
 If it does:
-1. Copy it to `.env` in the skill directory (or the workspace root, depending on how the user's setup loads env vars)
-2. Walk the user through each variable — what it is, where to get it, and why it's needed
-3. Have them paste in the actual values
+1. Set the variable as a shell export so it's available immediately: `export TAOSTATS_API_KEY=the_actual_key`
+2. Then add it to the user's shell profile (`~/.bashrc`, `~/.zshrc`, etc.) so it persists across sessions
+3. Walk the user through each variable — what it is, where to get it, and why it's needed
 4. **Never echo keys back.** Once set, confirm the variable exists without showing the value.
 
 ```bash
 # Example for chain-metrics
-cp ~/.openclaw/workspace/skills/chain-metrics/.env.example ~/.openclaw/workspace/skills/chain-metrics/.env
-# Then guide user to edit and fill in their key
+export TAOSTATS_API_KEY=the_actual_key
+echo 'export TAOSTATS_API_KEY=the_actual_key' >> ~/.bashrc
 ```
+
+The `.env.example` file documents which variables are needed — it's a reference, not something you copy. The actual keys live in the user's shell environment.
 
 If the skill has other dependencies (like Python packages), check the SKILL.md for prerequisites and walk through those too.
 

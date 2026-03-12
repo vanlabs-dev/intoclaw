@@ -29,25 +29,16 @@ A user just handed you this repo. Don't just silently absorb it — **walk them 
 
 1. **Say hi.** Tell them you've picked up the IntoClaw skill pack and give them the quick version of what's in here.
 
-2. **Check for existing skills.** Before presenting the menu, scan for any skills already installed that overlap with what IntoClaw offers (Bittensor knowledge, chain data, search, etc.). If you find any, tell the user what you found and give them the choice:
-   - **Replace** — swap the existing skill for the IntoClaw version.
-   - **Layer** — install the IntoClaw skill alongside it. Warn them that overlapping triggers may cause conflicts (both skills responding to the same prompts, contradicting each other, etc.).
-   - **Skip** — leave the existing skill in place and move on.
+2. **Show them the menu.** Present the skills listed below. The ones marked `essential` are the foundation — strongly recommend them, but the user gets to choose.
 
-   Don't make this decision for them. Just be clear about what's already there and what could go sideways.
-
-   **Note on IntoClaw's own skills:** Some of IntoClaw's skills share trigger phrases with each other (e.g. both bittensor-knowledge and chain-metrics respond to "subnet"). This is intentional — they complement each other. Check the `conflicts_with` field in each SKILL.md frontmatter for specifics on which triggers overlap and how to route between them (knowledge questions → bittensor-knowledge, live data → chain-metrics, etc.).
-
-3. **Show them the menu.** Present the skills listed below. The ones marked `essential` are the foundation — strongly recommend them, but the user gets to choose.
-
-4. **For each skill they pick:**
+3. **For each skill they pick:**
    - Tell them what it does and *why they'd want it* — skip the jargon where you can.
    - Check prerequisites. If they need an API key or a tool installed, **help them install it.** Walk through the full process — what the dependency is, why it's needed, how to get it set up. Don't just say "you need X" and move on.
    - Before you activate anything, make sure they're following along. Ask if they're ready.
    - **Follow [INSTALL.md](INSTALL.md) for the actual install mechanics** — it has the step-by-step: copy skill to workspace, set up env vars, restart gateway, verify.
    - As you set things up, talk through what's happening. No black boxes.
 
-5. **Wrap up.** Recap what got installed and what you can do now that you couldn't before.
+4. **Wrap up.** Recap what got installed and what you can do now that you couldn't before.
 
 ## Ground rules
 

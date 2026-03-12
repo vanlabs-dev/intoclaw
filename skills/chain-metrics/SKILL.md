@@ -23,8 +23,8 @@ Live Bittensor chain data powered by [TaoStats](https://taostats.io). The data w
 
 **Prerequisites:**
 - A TaoStats API key — get one at [dash.taostats.io](https://dash.taostats.io)
-- Set it in the `.env` file in the skill directory (copy `.env.example` → `.env` and fill in your key)
-- Alternative: set it as a shell variable with `export TAOSTATS_API_KEY=your_key_here` (won't persist across sessions)
+- Set it as an environment variable: `export TAOSTATS_API_KEY=your_key_here`
+- Add the export to your shell profile (`~/.bashrc` or `~/.zshrc`) so it persists across sessions
 
 Walk the user through getting their key if they don't have one. It takes a minute.
 

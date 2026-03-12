@@ -215,8 +215,8 @@ IntoClaw skills are open-source and welcome PRs — check the repo's contributin
 
 ## Verify
 
-After installing this skill, run a quick check:
+After installing this skill, run a quick check to confirm it loaded:
 
 **Ask:** "Create a skill called test-skill for looking up weather data"
 
-**Expected:** The bot walks through the 7-step process — asks clarifying questions about the skill, plans the directory structure, writes the frontmatter with trigger phrases, and offers to create the files. If it just creates a generic template without asking questions, the skill didn't load properly.
+**Expected:** The bot's first question should be whether this is a personal skill (`~/.openclaw/workspace/skills/`) or an IntoClaw repo contribution — it asks destination before writing anything. If it skips straight to creating files or doesn't ask about destination, the skill didn't load properly.
