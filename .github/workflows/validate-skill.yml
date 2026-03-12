@@ -17,9 +17,6 @@ jobs:
         with:
           python-version: "3.11"
 
-      - name: Install PyYAML
-        run: pip install pyyaml
-
       - name: Check no .env files committed
         run: |
           echo "Checking for .env files (only .env.example allowed)..."
@@ -34,7 +31,7 @@ jobs:
       - name: Validate SKILL.md frontmatter
         run: |
           python3 << 'PYEOF'
-          import os, sys, yaml
+          import os, sys, re
 
           errors = []
           required_fields = ["name", "description", "version"]
@@ -55,18 +52,13 @@ jobs:
                       errors.append(f"{path}: Malformed frontmatter (missing closing ---)")
                       continue
 
-                  try:
-                      fm = yaml.safe_load(parts[1])
-                  except yaml.YAMLError as e:
-                      errors.append(f"{path}: Invalid YAML in frontmatter: {e}")
-                      continue
+                  frontmatter = parts[1]
 
-                  if not isinstance(fm, dict):
-                      errors.append(f"{path}: Frontmatter is not a YAML mapping")
-                      continue
-
+                  # Use regex to check for required top-level fields
+                  # (OpenClaw frontmatter uses unquoted colons in values,
+                  # which breaks yaml.safe_load — regex is more robust here)
                   for field in required_fields:
-                      if field not in fm:
+                      if not re.search(rf"^{field}\s*:", frontmatter, re.MULTILINE):
                           errors.append(f"{path}: Missing required field '{field}'")
 
                   # Check line count
@@ -86,10 +78,13 @@ jobs:
       - name: Check conflict bidirectionality
         run: |
           python3 << 'PYEOF'
-          import os, sys, yaml
+          import os, sys, re
 
-          # Collect all conflicts_with declarations
-          skills = {}  # name -> list of declared conflicts
+          # Collect all conflicts_with declarations using regex
+          # (yaml.safe_load chokes on unquoted colons in description fields)
+          # Use DIRECTORY name as canonical key + frontmatter name for resolving
+          skills = {}       # dir_name -> list of target skill names
+          name_to_dir = {}  # frontmatter name -> dir_name
 
           for root, dirs, files in os.walk("skills"):
               if "SKILL.md" in files:
@@ -103,34 +98,35 @@ jobs:
                   if len(parts) < 3:
                       continue
 
-                  try:
-                      fm = yaml.safe_load(parts[1])
-                  except:
-                      continue
+                  frontmatter = parts[1]
+                  dir_name = os.path.basename(root)
 
-                  if not isinstance(fm, dict):
-                      continue
+                  # Extract frontmatter name
+                  name_match = re.search(r"^name:\s*(.+)$", frontmatter, re.MULTILINE)
+                  fm_name = name_match.group(1).strip() if name_match else dir_name
+                  name_to_dir[fm_name] = dir_name
+                  name_to_dir[dir_name] = dir_name
 
-                  name = fm.get("name", os.path.basename(root))
-                  conflicts = fm.get("conflicts_with", [])
-                  if conflicts:
-                      skills[name] = [(c.get("skill", ""), path) for c in conflicts if isinstance(c, dict)]
-                  else:
-                      skills[name] = []
+                  # Extract conflict target skills via regex
+                  conflict_targets = re.findall(r"^\s+-\s+skill:\s*(.+)$", frontmatter, re.MULTILINE)
+                  skills[dir_name] = [t.strip() for t in conflict_targets]
 
           # Check bidirectionality
           errors = []
-          for skill_name, conflicts in skills.items():
-              for target_name, source_path in conflicts:
-                  if target_name not in skills:
-                      # Target skill might use a different name field vs directory name
-                      # Skip if target not found (might be external)
+          for skill_dir, targets in skills.items():
+              for target_ref in targets:
+                  target_dir = name_to_dir.get(target_ref)
+                  if target_dir is None or target_dir not in skills:
                       continue
-                  target_conflicts = [c[0] for c in skills[target_name]]
-                  if skill_name not in target_conflicts:
+                  # Check if target declares conflict back
+                  target_refs = skills[target_dir]
+                  target_resolves_back = any(
+                      name_to_dir.get(ref) == skill_dir for ref in target_refs
+                  )
+                  if not target_resolves_back:
                       errors.append(
-                          f"{skill_name} declares conflict with {target_name}, "
-                          f"but {target_name} does not declare conflict back with {skill_name}"
+                          f"{skill_dir} declares conflict with {target_ref}, "
+                          f"but {target_dir} does not declare conflict back with {skill_dir}"
                       )
 
           if errors:
