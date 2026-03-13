@@ -32,7 +32,9 @@ Multi-phase subnet research combining live chain data (TaoStats), social sentime
 
 ### Telegram-Ready Output
 
-The script outputs a `telegram` object with 4 pre-formatted message strings, ready to send directly. **Use these instead of formatting the raw display data yourself.** Each message is pre-escaped (domains use `(dot)` to prevent link previews) and under 3,800 characters (Telegram limit is 4,096).
+The script outputs a `telegram` object with 4 pre-formatted message strings in **HTML format** (for Telegram Bot API `parse_mode: "HTML"`), ready to send directly. **Use these instead of formatting the raw display data yourself.** Each message is HTML-escaped, domain-escaped (domains use `(dot)` to prevent link previews), and under 3,800 characters (Telegram limit is 4,096).
+
+**Important:** When sending these messages via the Telegram Bot API, set `parse_mode` to `HTML`. The messages use `<b>bold</b>` and `<i>italic</i>` tags — not Markdown.
 
 **How to send the report:**
 1. **Send `telegram.msg1`** — overview + on-chain health metrics
@@ -44,12 +46,13 @@ Pause briefly between messages so they arrive in order.
 
 ### Formatting Rules
 
-These rules are already applied in the `telegram` messages, but follow them if you ever narrate raw data:
+These rules are already applied in the `telegram` messages, but follow them if you ever compose messages manually:
 
-1. **No markdown tables.** Use **bold key: value** pairs instead.
-2. **Domain names escaped** — `tao(dot)bot` not `tao.bot` — prevents link preview embeds.
-3. **No code blocks** — everything as plain text with bold labels.
-4. **Emoji anchors** — 📊 on-chain, 👥 validators, 📣 social, 🔍 findings, ⚠️ risks, 🟢🟡🔴 severity.
+1. **HTML format** — use `<b>bold</b>` and `<i>italic</i>`, not Markdown. Telegram's MarkdownV2 requires escaping too many special characters; HTML is more reliable.
+2. **No markdown tables.** Use `<b>Label:</b> value` pairs on separate lines.
+3. **Domain names escaped** — `tao(dot)bot` not `tao.bot` — prevents link preview embeds.
+4. **HTML entities** — use `&amp;` for `&`, `&lt;` for `<`, `&gt;` for `>` in any user-generated text.
+5. **Emoji anchors** — 📊 on-chain, 👥 validators, 📣 social, 🔍 findings, ⚠️ risks, 🟢🟡🔴 severity.
 
 ### Overlaps
 

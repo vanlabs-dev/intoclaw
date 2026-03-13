@@ -478,21 +478,30 @@ def _severity_emoji(sev: str) -> str:
     return {"critical": "🔴", "high": "🔴", "medium": "🟡", "low": "🟢"}.get(sev, "⚪")
 
 
+def _html_escape(text: str) -> str:
+    """Escape HTML special characters in user-generated text."""
+    return text.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
+
+
 def build_telegram_messages(
     display: Dict[str, Any],
     signals: List[Dict],
     social_data: Dict,
     web_research: Dict,
 ) -> Dict[str, Optional[str]]:
-    """Build 4 pre-formatted Telegram message strings, each under 3800 chars."""
+    """Build 4 pre-formatted Telegram message strings in HTML parse_mode.
+
+    Uses Telegram Bot API HTML formatting:
+      <b>bold</b>  <i>italic</i>  <code>mono</code>
+    Each message stays under 3800 chars (Telegram limit is 4096).
+    """
 
     netuid = display.get("netuid", "?")
-    name = display.get("subnet_name", "Unknown")
+    name = _html_escape(_escape_domains(display.get("subnet_name", "Unknown")))
     date_str = datetime.now().strftime("%Y-%m-%d")
 
     # ── msg1: Header + Overview + On-Chain Health ──
 
-    # Severity summary line
     sev = display.get("signal_severities", {})
     signal_summary_parts = []
     if sev.get("critical", 0): signal_summary_parts.append(f"🔴 {sev['critical']} critical")
@@ -522,55 +531,52 @@ def build_telegram_messages(
     active_m = display.get("active_miners", "?")
     startup = display.get("startup_mode", False)
 
-    msg1 = f"""**SN{netuid} — {_escape_domains(name)}**
+    msg1 = f"""<b>SN{netuid} — {name}</b>
 {date_str} · TaoStats + Desearch
 Signals: {signal_line}
 
-📊 **On-Chain Health**
+📊 <b>On-Chain Health</b>
 
-**Price:** {price_str} TAO
-**Root Prop:** {root_str}
-**Fear & Greed:** {fng_str}
+<b>Price:</b> {price_str} TAO
+<b>Root Prop:</b> {root_str}
+<b>Fear &amp; Greed:</b> {fng_str}
 
-**Liquidity:** {liq_str}
-**Market Cap:** {_fmt_stake(mcap)}
-**Volume 24h:** {_fmt_stake(vol)}
+<b>Liquidity:</b> {liq_str}
+<b>Market Cap:</b> {_fmt_stake(mcap)}
+<b>Volume 24h:</b> {_fmt_stake(vol)}
 
-**Net Flow 7d:** {_fmt_flow(flow_7d)}
-**Net Flow 30d:** {_fmt_flow(flow_30d)}
+<b>Net Flow 7d:</b> {_fmt_flow(flow_7d)}
+<b>Net Flow 30d:</b> {_fmt_flow(flow_30d)}
 
-**Emission:** {emission}%
-**Validators:** {active_v} active · **Miners:** {active_m} active
-**Startup Mode:** {"Yes ⚠️" if startup else "No"}"""
+<b>Emission:</b> {emission}%
+<b>Validators:</b> {active_v} active · <b>Miners:</b> {active_m} active
+<b>Startup Mode:</b> {"Yes ⚠️" if startup else "No"}"""
 
     # ── msg2: Validators + Social ──
 
     validators = display.get("top_validators", [])
     vali_lines = []
     for v in validators[:5]:
-        vname = _escape_domains(v.get("name", "unknown"))
+        vname = _html_escape(_escape_domains(v.get("name", "unknown")))
         stake = _fmt_stake(v.get("stake_tao", 0))
         apy7 = v.get("seven_day_apy")
         apy_str = f"{apy7 * 100:.1f}%" if apy7 is not None else "N/A"
         part = v.get("seven_day_participation")
         part_str = f"{part*100:.0f}%" if part is not None else "N/A"
-        vali_lines.append(f"• **{vname}** · {stake} · {apy_str} 7d APY · {part_str} participation")
+        vali_lines.append(f"• <b>{vname}</b> · {stake} · {apy_str} 7d APY · {part_str} participation")
 
     vali_block = "\n".join(vali_lines) if vali_lines else "No validator data available."
 
     # Social — extract key points from web research summary
     social_summary = ""
     if isinstance(web_research, dict):
-        # Try to get the final summary from desearch AI response
         summary = web_research.get("summary", "") or web_research.get("result", "")
         if isinstance(summary, str) and summary:
-            # Truncate to keep msg2 under limit
-            social_summary = _escape_domains(summary[:800])
+            social_summary = _html_escape(_escape_domains(summary[:800]))
         elif isinstance(web_research.get("data"), list):
-            # If it's a list of results, grab titles
             items = web_research["data"][:5]
             social_summary = "\n".join(
-                f"• {_escape_domains(str(item.get('title', '')))}"
+                f"• {_html_escape(_escape_domains(str(item.get('title', ''))))}"
                 for item in items if isinstance(item, dict)
             )
 
@@ -586,8 +592,9 @@ Signals: {signal_line}
         text = t.get("text", "")
         if username and username not in seen_users and text:
             seen_users.add(username)
-            short = _escape_domains(text[:120].replace("\n", " "))
-            tweet_lines.append(f"• @{_escape_domains(username)}: {short}")
+            short = _html_escape(_escape_domains(text[:120].replace("\n", " ")))
+            uname = _html_escape(_escape_domains(username))
+            tweet_lines.append(f"• @{uname}: {short}")
         if len(tweet_lines) >= 4:
             break
 
@@ -601,41 +608,37 @@ Signals: {signal_line}
     if not social_block:
         social_block = "No recent social data found."
 
-    msg2 = f"""👥 **Validator Landscape**
+    msg2 = f"""👥 <b>Validator Landscape</b>
 
 {vali_block}
 
-📣 **Social & Community**
+📣 <b>Social &amp; Community</b>
 
 {social_block}"""
 
     # Trim msg2 if over limit
     if len(msg2) > 3800:
-        msg2 = msg2[:3750] + "\n\n_(truncated)_"
+        msg2 = msg2[:3750] + "\n\n<i>(truncated)</i>"
 
-    # ── msg3: Always null — chart image slot ──
+    # ── msg3: Reserved ──
     msg3 = None
 
     # ── msg4: Key Findings + Risks + Bottom Line ──
-    # Findings get a short narrative wrapper, not just raw signal text.
-    # Risks get severity emoji + bold signal name + explanation.
 
     findings_lines = []
     risk_lines = []
     finding_num = 1
     for s in signals:
         emoji = _severity_emoji(s["severity"])
-        signal_name = s["signal"].replace("_", " ").title()
-        msg_text = _escape_domains(s.get("message", ""))
+        signal_name = _html_escape(s["signal"].replace("_", " ").title())
+        msg_text = _html_escape(_escape_domains(s.get("message", "")))
 
         if s["severity"] in ("critical", "high"):
-            risk_lines.append(f"{emoji} **{signal_name}** — {msg_text}")
+            risk_lines.append(f"{emoji} <b>{signal_name}</b> — {msg_text}")
         else:
-            # Wrap in a short narrative sentence instead of raw message
-            findings_lines.append(f"{finding_num}. **{signal_name}:** {msg_text}")
+            findings_lines.append(f"{finding_num}. <b>{signal_name}:</b> {msg_text}")
             finding_num += 1
 
-    # If no explicit risks, note that
     if not risk_lines:
         risk_lines.append("🟢 No high-severity risks detected.")
     if not findings_lines:
@@ -644,27 +647,26 @@ Signals: {signal_line}
     # Bottom line
     crit_count = sev.get("critical", 0) + sev.get("high", 0)
     if crit_count >= 2:
-        bottom = f"**⚠️ Multiple red flags detected. Approach SN{netuid} with extreme caution.**"
+        bottom = f"<b>⚠️ Multiple red flags detected. Approach SN{netuid} with extreme caution.</b>"
     elif crit_count == 1:
-        bottom = f"**🟡 One significant concern flagged. Review the risk above before committing to SN{netuid}.**"
+        bottom = f"<b>🟡 One significant concern flagged. Review the risk above before committing to SN{netuid}.</b>"
     elif sev.get("medium", 0) >= 2:
-        bottom = f"**🟡 A few caution signals on SN{netuid}. Not dealbreakers, but size positions carefully.**"
+        bottom = f"<b>🟡 A few caution signals on SN{netuid}. Not dealbreakers, but size positions carefully.</b>"
     else:
-        bottom = f"**🟢 SN{netuid} looks healthy on the metrics. No red flags in the data.**"
+        bottom = f"<b>🟢 SN{netuid} looks healthy on the metrics. No red flags in the data.</b>"
 
-    msg4 = f"""🔍 **Key Findings**
+    msg4 = f"""🔍 <b>Key Findings</b>
 
 {chr(10).join(findings_lines[:6])}
 
-⚠️ **Risk Factors**
+⚠️ <b>Risk Factors</b>
 
 {chr(10).join(risk_lines[:5])}
 
 {bottom}"""
 
-    # Trim msg4 if over limit
     if len(msg4) > 3800:
-        msg4 = msg4[:3750] + "\n\n_(truncated)_"
+        msg4 = msg4[:3750] + "\n\n<i>(truncated)</i>"
 
     return {"msg1": msg1, "msg2": msg2, "msg3": msg3, "msg4": msg4}
 
