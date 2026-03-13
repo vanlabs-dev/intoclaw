@@ -595,13 +595,12 @@ def build_telegram_message(
     finding_num = 1
     for s in signals:
         emoji = _severity_emoji(s["severity"])
-        signal_name = _html_escape(s["signal"].replace("_", " ").title())
         msg_text = _html_escape(_escape_domains(s.get("message", "")))
 
         if s["severity"] in ("critical", "high"):
-            risk_lines.append(f"{emoji} <b>{signal_name}</b> — {msg_text}")
+            risk_lines.append(f"{emoji} {msg_text}")
         else:
-            findings_lines.append(f"{finding_num}. <b>{signal_name}:</b> {msg_text}")
+            findings_lines.append(f"{finding_num}. {msg_text}")
             finding_num += 1
 
     if not risk_lines:
