@@ -35,13 +35,12 @@ Multi-phase subnet research combining live chain data (TaoStats), social sentime
 The script outputs a `telegram` object with 4 pre-formatted message strings, ready to send directly. **Use these instead of formatting the raw display data yourself.** Each message is pre-escaped (domains use `(dot)` to prevent link previews) and under 3,800 characters (Telegram limit is 4,096).
 
 **How to send the report:**
-1. **Send `header_path` image** — the styled header card PNG. Attach it as a photo.
-2. **Send `telegram.msg1`** — overview + on-chain health metrics
-3. **Send `telegram.msg2`** — validator landscape + social sentiment
-4. **Send `chart_path` image** — the 30-day net flow chart PNG (`telegram.msg3` is always null — this slot is for the chart image)
-5. **Send `telegram.msg4`** — key findings + risk factors + bottom line
+1. **Send `telegram.msg1`** — overview + on-chain health metrics
+2. **Send `telegram.msg2`** — validator landscape + social sentiment
+3. **Send `telegram.msg3`** — always null (reserved for future use)
+4. **Send `telegram.msg4`** — key findings + risk factors + bottom line
 
-Pause briefly between messages so they arrive in order. If `header_path` or `chart_path` is null (Pillow/matplotlib missing), skip those images and just send the text messages.
+Pause briefly between messages so they arrive in order.
 
 ### Formatting Rules
 
@@ -83,11 +82,10 @@ So if the user already has keys set up for their chain data or search skills, th
 
 **If the user doesn't have keys yet:** Walk them through getting a TaoStats API key (free at dash.taostats.io) and a Desearch API key (funded account at desearch.ai). They can put both keys in a single `.env` file at the workspace root and all skills will pick them up.
 
-**Python dependencies:** The script needs `requests`, `Pillow`, and `matplotlib`. Install from the skill directory:
+**Python dependencies:** The script needs `requests`. Install from the skill directory:
 ```bash
 pip install -r skills/subnet-research/requirements.txt
 ```
-If `Pillow` or `matplotlib` are missing, the script still runs — it just skips the header card and chart generation (sets `header_path`/`chart_path` to null).
 
 ---
 
@@ -167,15 +165,11 @@ Use the chain-metrics and desearch bash helpers or the Python script's `--deep` 
 **Use the pre-formatted `telegram` messages.** The script builds 4 message strings ready to send directly. Don't reformat the `display` data yourself — the messages are already escaped, emoji-anchored, and under Telegram's character limit.
 
 **Delivery order:**
-1. Send `header_path` as a photo (the styled header card)
-2. Send `telegram.msg1` as text (overview + on-chain health)
-3. Send `telegram.msg2` as text (validators + social)
-4. Send `chart_path` as a photo (30-day net flow chart)
-5. Send `telegram.msg4` as text (findings + risks + bottom line)
+1. Send `telegram.msg1` as text (overview + on-chain health)
+2. Send `telegram.msg2` as text (validators + social)
+3. Send `telegram.msg4` as text (findings + risks + bottom line)
 
-If images are null (deps missing), skip them and just send the text messages.
-
-**For comparison mode** (multiple subnets): each subnet in the output has its own `telegram` and `header_path`. Send each subnet's report sequentially, with a brief separator between them.
+**For comparison mode** (multiple subnets): each subnet in the output has its own `telegram` object. Send each subnet's report sequentially, with a brief separator between them.
 
 > **If you add any narration around the messages** (context, interpretation, follow-ups), remember: no markdown tables, escape domain names with (dot), and keep each message under 3,800 characters.
 
@@ -210,9 +204,7 @@ The script outputs JSON with these top-level fields:
 
 | Field | Description |
 |---|---|
-| `header_path` | File path to a styled header card PNG (1200×300, dark theme with SN number, subnet name, key stats). Send as the first image. Null if Pillow is missing. |
-| `chart_path` | File path to a 30-day net flow PNG chart (dark theme, TAO gold line). Send as the chart image. Null if matplotlib is missing or generation fails. |
-| `telegram` | Object with 4 pre-formatted message strings: `msg1` (overview + metrics), `msg2` (validators + social), `msg3` (always null — chart image slot), `msg4` (findings + risks). **Use these directly** — they're pre-escaped, emoji-anchored, and under the Telegram character limit. |
+| `telegram` | Object with 4 pre-formatted message strings: `msg1` (overview + metrics), `msg2` (validators + social), `msg3` (always null — reserved), `msg4` (findings + risks + bottom line). **Use these directly** — they're pre-escaped, emoji-anchored, and under the Telegram character limit. |
 | `pool`, `subnet_info`, `validators` | Raw TaoStats API responses — use for deep inspection if needed. |
 | `social`, `web_research` | Raw Desearch API responses. |
 | `signals` | Detected signals with severity, value, and plain-English message. |

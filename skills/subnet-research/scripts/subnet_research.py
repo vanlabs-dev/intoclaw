@@ -16,7 +16,6 @@ import argparse
 import json
 import os
 import sys
-import tempfile
 import time
 from datetime import datetime
 from pathlib import Path
@@ -28,21 +27,6 @@ except ImportError:
     print("Error: 'requests' library required. Install with: pip install requests", file=sys.stderr)
     sys.exit(1)
 
-# Optional deps — degrade gracefully if missing
-try:
-    from PIL import Image, ImageDraw, ImageFont
-    HAS_PILLOW = True
-except ImportError:
-    HAS_PILLOW = False
-
-try:
-    import matplotlib
-    matplotlib.use("Agg")  # non-interactive backend for headless rendering
-    import matplotlib.pyplot as plt
-    import matplotlib.dates as mdates
-    HAS_MATPLOTLIB = True
-except ImportError:
-    HAS_MATPLOTLIB = False
 
 
 SCRIPT_DIR = Path(__file__).resolve().parent
@@ -121,197 +105,6 @@ def _rao_to_tao(val: Any) -> Optional[float]:
     if f is None:
         return None
     return f / RAO_PER_TAO
-
-
-# ── Header Card ──────────────────────────────────────────────────────────────
-
-# Colors
-_CLR_BG = "#0d0d0d"
-_CLR_GOLD = "#e8c14a"
-_CLR_WHITE = "#ffffff"
-_CLR_GREY = "#999999"
-_CLR_DIVIDER = "#e8c14a"
-
-
-def _load_font(size: int, bold: bool = False) -> ImageFont.FreeTypeFont:
-    """Load a clean sans-serif font, falling back to default if unavailable."""
-    # Try common system paths for a clean sans-serif
-    candidates = [
-        "arial.ttf", "arialbd.ttf" if bold else "arial.ttf",
-        "DejaVuSans-Bold.ttf" if bold else "DejaVuSans.ttf",
-        "LiberationSans-Bold.ttf" if bold else "LiberationSans-Regular.ttf",
-        "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf",
-        "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf",
-    ]
-    for name in candidates:
-        try:
-            return ImageFont.truetype(name, size)
-        except (IOError, OSError):
-            continue
-    # matplotlib bundled font as last resort
-    try:
-        import matplotlib.font_manager as fm
-        prop = fm.FontProperties(weight="bold" if bold else "normal")
-        path = fm.findfont(prop)
-        if path:
-            return ImageFont.truetype(path, size)
-    except Exception:
-        pass
-    return ImageFont.load_default()
-
-
-def generate_header_card(netuid: int, display: Dict[str, Any]) -> Optional[str]:
-    """Generate a styled 1200x300 header card PNG. Returns file path or None."""
-    if not HAS_PILLOW:
-        print("  Pillow not installed — skipping header card. pip install Pillow", file=sys.stderr)
-        return None
-    try:
-        W, H = 1200, 300
-        img = Image.new("RGB", (W, H), _CLR_BG)
-        draw = ImageDraw.Draw(img)
-
-        # Fonts
-        font_big = _load_font(90, bold=True)
-        font_name = _load_font(32, bold=False)
-        font_label = _load_font(16, bold=False)
-        font_value = _load_font(22, bold=True)
-
-        # ── Left side: SN{netuid} + subnet name ──
-        sn_text = f"SN{netuid}"
-        draw.text((40, 40), sn_text, fill=_CLR_GOLD, font=font_big)
-
-        subnet_name = display.get("subnet_name", "")
-        if subnet_name:
-            draw.text((45, 145), subnet_name, fill=_CLR_WHITE, font=font_name)
-
-        # Gold divider line under the name
-        draw.line([(40, 195), (W - 40, 195)], fill=_CLR_DIVIDER, width=2)
-
-        # ── Right side: compact stats ──
-        price = display.get("price_tao")
-        mcap = display.get("market_cap_tao", 0)
-        fng_sent = display.get("fear_and_greed_sentiment", "")
-        fng_val = display.get("fear_and_greed_index")
-        flow_7d = display.get("net_flow_7d_tao", 0)
-
-        stats = []
-        if price is not None:
-            stats.append(("PRICE", f"{price:.6f} TAO"))
-        if mcap:
-            if mcap >= 1000:
-                stats.append(("MCAP", f"{mcap/1000:.1f}K TAO"))
-            else:
-                stats.append(("MCAP", f"{mcap:,.0f} TAO"))
-        if fng_val is not None:
-            stats.append(("SENTIMENT", f"{fng_val:.0f} — {fng_sent}"))
-        if flow_7d:
-            arrow = "↑" if flow_7d >= 0 else "↓"
-            stats.append(("7D FLOW", f"{arrow} {abs(flow_7d):,.0f} TAO"))
-
-        # Position stats in a column on the right
-        stat_x = 700
-        stat_y = 215
-        col_width = (W - 40 - stat_x) // min(len(stats), 4) if stats else 120
-
-        for i, (label, value) in enumerate(stats[:4]):
-            x = stat_x + i * col_width
-            draw.text((x, stat_y), label, fill=_CLR_GREY, font=font_label)
-            draw.text((x, stat_y + 22), value, fill=_CLR_WHITE, font=font_value)
-
-        # Save
-        out_path = os.path.join(tempfile.gettempdir(), f"sn{netuid}_header.png")
-        img.save(out_path, "PNG")
-        print(f"  Header card saved: {out_path}", file=sys.stderr)
-        return out_path
-
-    except Exception as e:
-        print(f"  Header card generation failed: {e}", file=sys.stderr)
-        return None
-
-
-# ── Net Flow Chart ───────────────────────────────────────────────────────────
-
-def generate_netflow_chart(netuid: int, subnet_name: str = "") -> Optional[str]:
-    """Generate a 30-day net flow line chart as PNG, return file path or None."""
-    if not HAS_MATPLOTLIB:
-        print("  matplotlib not installed — skipping chart. pip install matplotlib", file=sys.stderr)
-        return None
-
-    try:
-        # Pull 30 days of pool history (has total_tao we can diff for daily flow)
-        print(f"  Pulling 30-day pool history for chart...", file=sys.stderr)
-        hist = _taostats_get(f"dtao/pool/history/v1?netuid={netuid}&interval=day&limit=31")
-        records = hist.get("data", [])
-        if not records or len(records) < 3:
-            print("  Not enough history data for chart.", file=sys.stderr)
-            return None
-
-        # Data comes newest-first — reverse to chronological order
-        records = list(reversed(records))
-
-        dates = []
-        flows = []
-        for i in range(1, len(records)):
-            ts = records[i].get("timestamp", "")
-            prev_tao = _rao_to_tao(records[i - 1].get("total_tao")) or 0
-            curr_tao = _rao_to_tao(records[i].get("total_tao")) or 0
-            daily_flow = curr_tao - prev_tao
-            try:
-                dt = datetime.fromisoformat(ts.replace("Z", "+00:00"))
-                dates.append(dt)
-                flows.append(daily_flow)
-            except (ValueError, AttributeError):
-                continue
-
-        if len(dates) < 3:
-            print("  Not enough valid data points for chart.", file=sys.stderr)
-            return None
-
-        # ── Style: dark background, TAO gold line ──
-        fig, ax = plt.subplots(figsize=(10, 4))
-        fig.patch.set_facecolor("#0d0d0d")
-        ax.set_facecolor("#0d0d0d")
-
-        # Gold line for net flow
-        ax.plot(dates, flows, color="#e8c14a", linewidth=1.8, zorder=3)
-
-        # Fill above/below zero
-        ax.fill_between(dates, flows, 0,
-                         where=[f >= 0 for f in flows], color="#e8c14a", alpha=0.15, interpolate=True)
-        ax.fill_between(dates, flows, 0,
-                         where=[f < 0 for f in flows], color="#ff4444", alpha=0.15, interpolate=True)
-
-        # Zero baseline
-        ax.axhline(y=0, color="#555555", linestyle="--", linewidth=0.8, zorder=2)
-
-        # Title and labels
-        title = f"SN{netuid}"
-        if subnet_name:
-            title += f" ({subnet_name})"
-        title += " — Daily Net TAO Flow (30d)"
-        ax.set_title(title, color="#e8c14a", fontsize=13, fontweight="bold", pad=12)
-        ax.set_ylabel("TAO", color="#aaaaaa", fontsize=10)
-
-        # Axis styling
-        ax.tick_params(colors="#888888", which="both")
-        ax.xaxis.set_major_formatter(mdates.DateFormatter("%b %d"))
-        ax.xaxis.set_major_locator(mdates.WeekdayLocator(interval=1))
-        fig.autofmt_xdate(rotation=30)
-        for spine in ax.spines.values():
-            spine.set_color("#333333")
-        ax.grid(axis="y", color="#222222", linewidth=0.5)
-
-        # Save
-        out_path = os.path.join(tempfile.gettempdir(), f"sn{netuid}_netflow.png")
-        fig.savefig(out_path, dpi=150, bbox_inches="tight", facecolor="#0d0d0d", edgecolor="none")
-        plt.close(fig)
-
-        print(f"  Chart saved: {out_path}", file=sys.stderr)
-        return out_path
-
-    except Exception as e:
-        print(f"  Chart generation failed: {e}", file=sys.stderr)
-        return None
 
 
 # ── API helpers ───────────────────────────────────────────────────────────────
@@ -746,7 +539,7 @@ Signals: {signal_line}
 **Net Flow 7d:** {_fmt_flow(flow_7d)}
 **Net Flow 30d:** {_fmt_flow(flow_30d)}
 
-**Emission:** {emission}% of total
+**Emission:** {emission}%
 **Validators:** {active_v} active · **Miners:** {active_m} active
 **Startup Mode:** {"Yes ⚠️" if startup else "No"}"""
 
@@ -758,7 +551,7 @@ Signals: {signal_line}
         vname = _escape_domains(v.get("name", "unknown"))
         stake = _fmt_stake(v.get("stake_tao", 0))
         apy7 = v.get("seven_day_apy")
-        apy_str = f"{apy7:.1f}%" if apy7 is not None else "N/A"
+        apy_str = f"{apy7 * 100:.1f}%" if apy7 is not None else "N/A"
         part = v.get("seven_day_participation")
         part_str = f"{part*100:.0f}%" if part is not None else "N/A"
         vali_lines.append(f"• **{vname}** · {stake} · {apy_str} 7d APY · {part_str} participation")
@@ -824,23 +617,29 @@ Signals: {signal_line}
     msg3 = None
 
     # ── msg4: Key Findings + Risks + Bottom Line ──
+    # Findings get a short narrative wrapper, not just raw signal text.
+    # Risks get severity emoji + bold signal name + explanation.
 
     findings_lines = []
     risk_lines = []
-    for i, s in enumerate(signals, 1):
+    finding_num = 1
+    for s in signals:
         emoji = _severity_emoji(s["severity"])
+        signal_name = s["signal"].replace("_", " ").title()
         msg_text = _escape_domains(s.get("message", ""))
-        # Short signals → findings, severe ones → risks
+
         if s["severity"] in ("critical", "high"):
-            risk_lines.append(f"{emoji} **{s['signal'].replace('_', ' ').title()}** — {msg_text}")
+            risk_lines.append(f"{emoji} **{signal_name}** — {msg_text}")
         else:
-            findings_lines.append(f"{i}. {msg_text}")
+            # Wrap in a short narrative sentence instead of raw message
+            findings_lines.append(f"{finding_num}. **{signal_name}:** {msg_text}")
+            finding_num += 1
 
     # If no explicit risks, note that
     if not risk_lines:
         risk_lines.append("🟢 No high-severity risks detected.")
     if not findings_lines:
-        findings_lines.append("1. No notable signals — fundamentals look clean.")
+        findings_lines.append("1. No notable signals — fundamentals look clean across the board.")
 
     # Bottom line
     crit_count = sev.get("critical", 0) + sev.get("high", 0)
@@ -946,15 +745,6 @@ def research_subnet(netuid: int, phase_only: Optional[str] = None, include_deep:
     if include_deep and signals:
         print(f"\n--- Phase 3: Deep Dive for SN{netuid} ---", file=sys.stderr)
         output["deep_dive"] = deep_dive(netuid, signals)
-
-    # Header card — styled PNG with key stats
-    header_path = generate_header_card(netuid, output["display"])
-    output["header_path"] = header_path  # null if Pillow missing
-
-    # Net flow chart — generated after all phases, non-blocking on failure
-    subnet_name = output.get("display", {}).get("subnet_name", "")
-    chart_path = generate_netflow_chart(netuid, subnet_name)
-    output["chart_path"] = chart_path  # null if generation failed
 
     # Pre-formatted Telegram messages — ready to send directly
     output["telegram"] = build_telegram_messages(
