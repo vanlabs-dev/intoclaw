@@ -483,27 +483,11 @@ def identify_signals(chain_data: Dict, social_data: Dict) -> List[Dict[str, Any]
     # We skip this as a signal to avoid false positives. The raw data is still in
     # the output for the bot to inspect if relevant.
 
-    # -- Stake concentration (from validator data) --
-    validators_data = chain_data.get("validators", {})
-    validator_items = validators_data.get("data", []) if isinstance(validators_data, dict) else []
-    if validator_items and isinstance(validator_items, list):
-        stakes = [_safe_float(v.get("stake")) for v in validator_items if _safe_float(v.get("stake")) is not None]
-        if stakes:
-            total_stake = sum(stakes)
-            if total_stake > 0:
-                max_stake = max(stakes)
-                top_pct = (max_stake / total_stake) * 100
-                # Note: high concentration is common across Bittensor subnets at this
-                # stage of the ecosystem. Only flag extreme cases as informational.
-                if top_pct > 80:
-                    signals.append({
-                        "signal": "stake_concentration_extreme",
-                        "severity": "low",
-                        "value": top_pct,
-                        "message": f"Top validator holds {top_pct:.1f}% of all stake. "
-                                   f"Common in early-stage subnets but worth noting — "
-                                   f"governance is concentrated. Monitor as subnet grows.",
-                    })
+    # -- Stake concentration --
+    # Removed as a signal. High validator concentration is the norm across the
+    # Bittensor ecosystem at this stage — flagging it on every subnet adds noise,
+    # not insight. Validator stake data is still in the display summary for the
+    # bot to narrate if relevant.
 
     # -- Social concentration --
     tweets = social_data.get("twitter", [])

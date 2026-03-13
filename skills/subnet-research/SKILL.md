@@ -47,6 +47,14 @@ Reports are often read on mobile (Telegram, Discord). Follow these rules strictl
 
 4. **Sections as flowing prose with bold labels**, not grid layouts. Let the conversation breathe.
 
+5. **Split the report across multiple messages.** Telegram has a 4,096 character limit per message. A full research report will exceed this. Send the report as **separate messages**, one per logical section:
+   - **Message 1**: Banner + Overview + On-Chain Health
+   - **Message 2**: Validator Landscape + Social Sentiment
+   - **Message 3**: Net Flow Chart (attach the PNG image if `chart_path` exists)
+   - **Message 4**: Key Findings + Risk Factors + Bottom Line
+
+   Each message should be self-contained and under ~3,500 characters (leave headroom for formatting). Don't try to cram the whole report into one message — it will get cut off mid-sentence. Pause briefly between messages so they arrive in order.
+
 ### Overlaps
 
 This skill shares trigger phrases with three other skills:
@@ -130,7 +138,6 @@ The script includes a `signals` section in its output. Key checks:
 | **Root prop elevated** | `root_prop > 0.30` | Price partly driven by protocol injection, not organic demand. Above 0.70 = artificial pump. |
 | **Capital outflow** | `net_flow_7_days < 0` or `net_flow_30_days < 0` | Money leaving the subnet. Check if temporary dip or sustained trend. |
 | **Extreme sentiment** | `fear_and_greed < 30` or `> 70` | Market extremes. Fear can mean buy opportunity; greed means caution. |
-| **Stake concentration** | Top validator holds > 80% of stake | Worth noting but common in early Bittensor ecosystem. Informational, not a red flag unless extreme. |
 | **Concentrated X chatter** | Few accounts dominating discussion | Organic community vs shill campaign. Note who's talking. |
 | **Pruning risk** | `in_danger = true` | Subnet at risk of deregistration. Check immunity period. |
 
