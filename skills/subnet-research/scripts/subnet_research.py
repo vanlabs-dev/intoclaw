@@ -427,7 +427,6 @@ def build_display_summary(chain_data: Dict, signals: List[Dict]) -> Dict[str, An
         "emission_pct": round((_safe_float(subnet_item.get("projected_emission")) or 0) * 100, 2),
         "active_validators": subnet_item.get("active_validators"),
         "active_miners": subnet_item.get("active_miners"),
-        "startup_mode": pool_item.get("startup_mode"),
         "top_validators": top_validators,
         "signal_count": len(signals),
         "signal_severities": {
@@ -530,7 +529,6 @@ def build_telegram_message(
     emission = display.get("emission_pct", 0)
     active_v = display.get("active_validators", "?")
     active_m = display.get("active_miners", "?")
-    startup = display.get("startup_mode", False)
 
     # ── Validators ──
 
@@ -640,7 +638,6 @@ Signals: {signal_line}
 
 <b>Emission:</b> {emission}%
 <b>Validators:</b> {active_v} active · <b>Miners:</b> {active_m} active
-<b>Startup Mode:</b> {"Yes ⚠️" if startup else "No"}
 
 👥 <b>Validator Landscape</b>
 
