@@ -132,8 +132,8 @@ def generate_ascii_header(netuid: int) -> Optional[str]:
         return None
     try:
         text = f"SN{netuid}"
-        # Try 'banner3' first (bold block style), fall back to 'big'
-        for font in ("banner3", "big", "standard"):
+        # Try 'slant' first (clean italic), fall back to 'big'
+        for font in ("slant", "big", "standard"):
             try:
                 banner = pyfiglet.figlet_format(text, font=font)
                 if banner.strip():
