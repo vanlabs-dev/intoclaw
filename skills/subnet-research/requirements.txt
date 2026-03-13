@@ -2,5 +2,5 @@
 # Install with: pip install -r requirements.txt
 
 requests>=2.28
-pyfiglet>=0.8          # ASCII art banners for report headers
+Pillow>=10.0           # Header card PNG generation
 matplotlib>=3.7        # Net flow chart generation (PNG output)

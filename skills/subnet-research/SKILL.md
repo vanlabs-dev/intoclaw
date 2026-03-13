@@ -30,30 +30,27 @@ This is an IntoClaw skill. When you research a subnet for the user, narrate each
 
 Multi-phase subnet research combining live chain data (TaoStats), social sentiment (Desearch/X), and Bittensor domain knowledge into a structured report. Inspired by iterative research methodology: broad scan first, identify signals, then deep dive on what matters.
 
-### Mobile-Friendly Formatting Rules
+### Telegram-Ready Output
 
-Reports are often read on mobile (Telegram, Discord). Follow these rules strictly:
+The script outputs a `telegram` object with 4 pre-formatted message strings, ready to send directly. **Use these instead of formatting the raw display data yourself.** Each message is pre-escaped (domains use `(dot)` to prevent link previews) and under 3,800 characters (Telegram limit is 4,096).
 
-1. **No markdown tables.** Tables render as code blocks on mobile and look terrible. Use **bold key: value** pairs instead:
-   - ✅ `**Price:** 0.004618 TAO`
-   - ❌ `| Price | 0.004618 TAO | Low |`
+**How to send the report:**
+1. **Send `header_path` image** — the styled header card PNG. Attach it as a photo.
+2. **Send `telegram.msg1`** — overview + on-chain health metrics
+3. **Send `telegram.msg2`** — validator landscape + social sentiment
+4. **Send `chart_path` image** — the 30-day net flow chart PNG (`telegram.msg3` is always null — this slot is for the chart image)
+5. **Send `telegram.msg4`** — key findings + risk factors + bottom line
 
-2. **ASCII banner as plain text.** Print the `ascii_header` as regular text, never in a code block (no triple backticks). If it renders poorly on mobile, skip it and use a bold text header instead: `**═══ SN46 — RESI ═══**`
+Pause briefly between messages so they arrive in order. If `header_path` or `chart_path` is null (Pillow/matplotlib missing), skip those images and just send the text messages.
 
-3. **Domain names must be escaped** to prevent link preview embeds (Telegram, Discord, etc). Always write domains with `(dot)` instead of `.`:
-   - ✅ `tao(dot)bot`, `tao(dot)com`, `taostats(dot)io`
-   - ❌ `tao.bot`, `tao.com`, `taostats.io`
-   This applies to validator names, URLs in prose, and any domain-like text in the report body.
+### Formatting Rules
 
-4. **Sections as flowing prose with bold labels**, not grid layouts. Let the conversation breathe.
+These rules are already applied in the `telegram` messages, but follow them if you ever narrate raw data:
 
-5. **Split the report across multiple messages.** Telegram has a 4,096 character limit per message. A full research report will exceed this. Send the report as **separate messages**, one per logical section:
-   - **Message 1**: Banner + Overview + On-Chain Health
-   - **Message 2**: Validator Landscape + Social Sentiment
-   - **Message 3**: Net Flow Chart (attach the PNG image if `chart_path` exists)
-   - **Message 4**: Key Findings + Risk Factors + Bottom Line
-
-   Each message should be self-contained and under ~3,500 characters (leave headroom for formatting). Don't try to cram the whole report into one message — it will get cut off mid-sentence. Pause briefly between messages so they arrive in order.
+1. **No markdown tables.** Use **bold key: value** pairs instead.
+2. **Domain names escaped** — `tao(dot)bot` not `tao.bot` — prevents link preview embeds.
+3. **No code blocks** — everything as plain text with bold labels.
+4. **Emoji anchors** — 📊 on-chain, 👥 validators, 📣 social, 🔍 findings, ⚠️ risks, 🟢🟡🔴 severity.
 
 ### Overlaps
 
@@ -86,11 +83,11 @@ So if the user already has keys set up for their chain data or search skills, th
 
 **If the user doesn't have keys yet:** Walk them through getting a TaoStats API key (free at dash.taostats.io) and a Desearch API key (funded account at desearch.ai). They can put both keys in a single `.env` file at the workspace root and all skills will pick them up.
 
-**Python dependencies:** The script needs `requests`, `pyfiglet`, and `matplotlib`. Install from the skill directory:
+**Python dependencies:** The script needs `requests`, `Pillow`, and `matplotlib`. Install from the skill directory:
 ```bash
 pip install -r skills/subnet-research/requirements.txt
 ```
-If `pyfiglet` or `matplotlib` are missing, the script still runs — it just skips the ASCII banner and chart generation.
+If `Pillow` or `matplotlib` are missing, the script still runs — it just skips the header card and chart generation (sets `header_path`/`chart_path` to null).
 
 ---
 
@@ -165,58 +162,22 @@ Use the chain-metrics and desearch bash helpers or the Python script's `--deep` 
 
 ---
 
-## Report Template
+## Report Delivery
 
-Structure your output like this. Skip sections that don't apply — a short, focused report beats a bloated one.
+**Use the pre-formatted `telegram` messages.** The script builds 4 message strings ready to send directly. Don't reformat the `display` data yourself — the messages are already escaped, emoji-anchored, and under Telegram's character limit.
 
-```markdown
-**═══ SN{netuid} — {subnet name} ═══**
+**Delivery order:**
+1. Send `header_path` as a photo (the styled header card)
+2. Send `telegram.msg1` as text (overview + on-chain health)
+3. Send `telegram.msg2` as text (validators + social)
+4. Send `chart_path` as a photo (30-day net flow chart)
+5. Send `telegram.msg4` as text (findings + risks + bottom line)
 
-**Subnet Research: SN{netuid} — {subnet name}**
-> Generated: {date} | Data: TaoStats + Desearch
+If images are null (deps missing), skip them and just send the text messages.
 
-**Overview**
-What this subnet does, who's behind it, and why it exists.
-(Combine bittensor-knowledge context with web research results.)
+**For comparison mode** (multiple subnets): each subnet in the output has its own `telegram` and `header_path`. Send each subnet's report sequentially, with a brief separator between them.
 
-**On-Chain Health**
-
-**Price:** {price} TAO
-**Root Prop:** {root_prop} — {interpretation}
-**Fear & Greed:** {index} ({sentiment})
-**Liquidity:** {liquidity} TAO ({liquidity_ratio_pct}% of market cap) — {Adequate / Thin}
-**Volume 24h:** {volume} TAO
-**Market Cap:** {mcap} TAO
-**Net Flow (7d):** {flow} TAO — {Inflow ✅ / Outflow ⚠️}
-**Net Flow (30d):** {flow} TAO — {trend direction}
-**Emission:** {emission_pct}% of total
-**Active Validators:** {n}  |  **Active Miners:** {n}
-**Startup Mode:** {yes/no}
-
-**Validator Landscape**
-List top validators with bold names and key stats inline:
-**{name}** — {stake} TAO staked, {apy}% 7d APY, {participation}% participation
-(Remember to escape domain-like validator names: tao(dot)bot, not tao.bot)
-
-**Social Sentiment**
-Prose summary of X/Twitter activity, key voices, narratives, sentiment direction.
-
-**Net Flow Chart**
-If `chart_path` is present in the output, attach the 30-day net flow PNG.
-
-**Key Findings**
-1. **{Finding}** — {interpretation and what it means for the user}
-2. **{Finding}** — {interpretation}
-
-**Risk Factors**
-• 🔴/🟡/🟢 **{Risk}** — {severity} — {explanation}
-
-**Comparison** (if multiple subnets requested)
-Side-by-side bold labels, not tables.
-```
-
-> **IMPORTANT**: No markdown tables anywhere in the report. Use bold key-value pairs.
-> Escape all domain names with (dot). Print ASCII header as plain text, not in code blocks.
+> **If you add any narration around the messages** (context, interpretation, follow-ups), remember: no markdown tables, escape domain names with (dot), and keep each message under 3,800 characters.
 
 ### Adapting the report
 
@@ -249,12 +210,13 @@ The script outputs JSON with these top-level fields:
 
 | Field | Description |
 |---|---|
-| `ascii_header` | ASCII art banner (e.g. "SN19") — print this at the top of every report. Null if pyfiglet is missing. |
-| `chart_path` | File path to a 30-day net flow PNG chart (dark theme, TAO gold line). Show/attach this in the report. Null if matplotlib is missing or generation fails. |
+| `header_path` | File path to a styled header card PNG (1200×300, dark theme with SN number, subnet name, key stats). Send as the first image. Null if Pillow is missing. |
+| `chart_path` | File path to a 30-day net flow PNG chart (dark theme, TAO gold line). Send as the chart image. Null if matplotlib is missing or generation fails. |
+| `telegram` | Object with 4 pre-formatted message strings: `msg1` (overview + metrics), `msg2` (validators + social), `msg3` (always null — chart image slot), `msg4` (findings + risks). **Use these directly** — they're pre-escaped, emoji-anchored, and under the Telegram character limit. |
 | `pool`, `subnet_info`, `validators` | Raw TaoStats API responses — use for deep inspection if needed. |
 | `social`, `web_research` | Raw Desearch API responses. |
 | `signals` | Detected signals with severity, value, and plain-English message. |
-| `display` | Pre-converted, human-readable values (TAO not rao, percentages not decimals, liquidity_ratio_pct for pool depth, top validators with correct names and APYs) — narrate directly from it without unit conversion. |
+| `display` | Pre-converted, human-readable values (TAO not rao, percentages not decimals, liquidity_ratio_pct for pool depth, top validators with correct names and APYs). The `telegram` messages are built from this — you shouldn't need to read `display` directly. |
 
 CLI options:
 - `--netuid N` (required) — primary subnet to research

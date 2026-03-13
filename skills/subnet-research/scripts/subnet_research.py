@@ -30,10 +30,10 @@ except ImportError:
 
 # Optional deps — degrade gracefully if missing
 try:
-    import pyfiglet
-    HAS_PYFIGLET = True
+    from PIL import Image, ImageDraw, ImageFont
+    HAS_PILLOW = True
 except ImportError:
-    HAS_PYFIGLET = False
+    HAS_PILLOW = False
 
 try:
     import matplotlib
@@ -123,26 +123,109 @@ def _rao_to_tao(val: Any) -> Optional[float]:
     return f / RAO_PER_TAO
 
 
-# ── ASCII Banner ─────────────────────────────────────────────────────────────
+# ── Header Card ──────────────────────────────────────────────────────────────
 
-def generate_ascii_header(netuid: int) -> Optional[str]:
-    """Generate an ASCII art banner like 'SN44' using pyfiglet."""
-    if not HAS_PYFIGLET:
-        print("  pyfiglet not installed — skipping ASCII banner. pip install pyfiglet", file=sys.stderr)
+# Colors
+_CLR_BG = "#0d0d0d"
+_CLR_GOLD = "#e8c14a"
+_CLR_WHITE = "#ffffff"
+_CLR_GREY = "#999999"
+_CLR_DIVIDER = "#e8c14a"
+
+
+def _load_font(size: int, bold: bool = False) -> ImageFont.FreeTypeFont:
+    """Load a clean sans-serif font, falling back to default if unavailable."""
+    # Try common system paths for a clean sans-serif
+    candidates = [
+        "arial.ttf", "arialbd.ttf" if bold else "arial.ttf",
+        "DejaVuSans-Bold.ttf" if bold else "DejaVuSans.ttf",
+        "LiberationSans-Bold.ttf" if bold else "LiberationSans-Regular.ttf",
+        "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf",
+        "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf",
+    ]
+    for name in candidates:
+        try:
+            return ImageFont.truetype(name, size)
+        except (IOError, OSError):
+            continue
+    # matplotlib bundled font as last resort
+    try:
+        import matplotlib.font_manager as fm
+        prop = fm.FontProperties(weight="bold" if bold else "normal")
+        path = fm.findfont(prop)
+        if path:
+            return ImageFont.truetype(path, size)
+    except Exception:
+        pass
+    return ImageFont.load_default()
+
+
+def generate_header_card(netuid: int, display: Dict[str, Any]) -> Optional[str]:
+    """Generate a styled 1200x300 header card PNG. Returns file path or None."""
+    if not HAS_PILLOW:
+        print("  Pillow not installed — skipping header card. pip install Pillow", file=sys.stderr)
         return None
     try:
-        text = f"SN{netuid}"
-        # Try 'slant' first (clean italic), fall back to 'big'
-        for font in ("slant", "big", "standard"):
-            try:
-                banner = pyfiglet.figlet_format(text, font=font)
-                if banner.strip():
-                    return banner.rstrip("\n")
-            except pyfiglet.FontNotFound:
-                continue
-        return pyfiglet.figlet_format(text).rstrip("\n")
+        W, H = 1200, 300
+        img = Image.new("RGB", (W, H), _CLR_BG)
+        draw = ImageDraw.Draw(img)
+
+        # Fonts
+        font_big = _load_font(90, bold=True)
+        font_name = _load_font(32, bold=False)
+        font_label = _load_font(16, bold=False)
+        font_value = _load_font(22, bold=True)
+
+        # ── Left side: SN{netuid} + subnet name ──
+        sn_text = f"SN{netuid}"
+        draw.text((40, 40), sn_text, fill=_CLR_GOLD, font=font_big)
+
+        subnet_name = display.get("subnet_name", "")
+        if subnet_name:
+            draw.text((45, 145), subnet_name, fill=_CLR_WHITE, font=font_name)
+
+        # Gold divider line under the name
+        draw.line([(40, 195), (W - 40, 195)], fill=_CLR_DIVIDER, width=2)
+
+        # ── Right side: compact stats ──
+        price = display.get("price_tao")
+        mcap = display.get("market_cap_tao", 0)
+        fng_sent = display.get("fear_and_greed_sentiment", "")
+        fng_val = display.get("fear_and_greed_index")
+        flow_7d = display.get("net_flow_7d_tao", 0)
+
+        stats = []
+        if price is not None:
+            stats.append(("PRICE", f"{price:.6f} TAO"))
+        if mcap:
+            if mcap >= 1000:
+                stats.append(("MCAP", f"{mcap/1000:.1f}K TAO"))
+            else:
+                stats.append(("MCAP", f"{mcap:,.0f} TAO"))
+        if fng_val is not None:
+            stats.append(("SENTIMENT", f"{fng_val:.0f} — {fng_sent}"))
+        if flow_7d:
+            arrow = "↑" if flow_7d >= 0 else "↓"
+            stats.append(("7D FLOW", f"{arrow} {abs(flow_7d):,.0f} TAO"))
+
+        # Position stats in a column on the right
+        stat_x = 700
+        stat_y = 215
+        col_width = (W - 40 - stat_x) // min(len(stats), 4) if stats else 120
+
+        for i, (label, value) in enumerate(stats[:4]):
+            x = stat_x + i * col_width
+            draw.text((x, stat_y), label, fill=_CLR_GREY, font=font_label)
+            draw.text((x, stat_y + 22), value, fill=_CLR_WHITE, font=font_value)
+
+        # Save
+        out_path = os.path.join(tempfile.gettempdir(), f"sn{netuid}_header.png")
+        img.save(out_path, "PNG")
+        print(f"  Header card saved: {out_path}", file=sys.stderr)
+        return out_path
+
     except Exception as e:
-        print(f"  ASCII banner failed: {e}", file=sys.stderr)
+        print(f"  Header card generation failed: {e}", file=sys.stderr)
         return None
 
 
@@ -564,6 +647,229 @@ def build_display_summary(chain_data: Dict, signals: List[Dict]) -> Dict[str, An
     return display
 
 
+# ── Telegram Message Formatter ────────────────────────────────────────────────
+
+def _escape_domains(text: str) -> str:
+    """Replace dots in domain-like strings with (dot) to prevent link previews."""
+    import re
+    # Match common TLD patterns: word.word where second word is a known TLD or looks like one
+    return re.sub(
+        r'(\b\w+)\.(\w{2,6}\b)',
+        lambda m: f"{m.group(1)}(dot){m.group(2)}"
+            if m.group(2).lower() in {
+                "com", "io", "ai", "org", "net", "co", "xyz", "dev", "app",
+                "bot", "finance", "exchange", "network", "protocol", "tech",
+                "gg", "me", "info", "cc", "tv", "sh", "de", "uk", "us",
+            }
+            else m.group(0),
+        text,
+    )
+
+
+def _fmt_flow(val: float) -> str:
+    """Format net flow value with direction arrow."""
+    if val >= 0:
+        return f"↑ +{val:,.0f} TAO inflow"
+    return f"↓ {val:,.0f} TAO outflow"
+
+
+def _fmt_stake(val: float) -> str:
+    """Format stake in K format."""
+    if val >= 1000:
+        return f"{val/1000:.0f}K TAO"
+    return f"{val:,.0f} TAO"
+
+
+def _severity_emoji(sev: str) -> str:
+    """Map severity to colored emoji."""
+    return {"critical": "🔴", "high": "🔴", "medium": "🟡", "low": "🟢"}.get(sev, "⚪")
+
+
+def build_telegram_messages(
+    display: Dict[str, Any],
+    signals: List[Dict],
+    social_data: Dict,
+    web_research: Dict,
+) -> Dict[str, Optional[str]]:
+    """Build 4 pre-formatted Telegram message strings, each under 3800 chars."""
+
+    netuid = display.get("netuid", "?")
+    name = display.get("subnet_name", "Unknown")
+    date_str = datetime.now().strftime("%Y-%m-%d")
+
+    # ── msg1: Header + Overview + On-Chain Health ──
+
+    # Severity summary line
+    sev = display.get("signal_severities", {})
+    signal_summary_parts = []
+    if sev.get("critical", 0): signal_summary_parts.append(f"🔴 {sev['critical']} critical")
+    if sev.get("high", 0): signal_summary_parts.append(f"🔴 {sev['high']} high")
+    if sev.get("medium", 0): signal_summary_parts.append(f"🟡 {sev['medium']} medium")
+    if sev.get("low", 0): signal_summary_parts.append(f"🟢 {sev['low']} low")
+    signal_line = " · ".join(signal_summary_parts) if signal_summary_parts else "🟢 No notable signals"
+
+    price = display.get("price_tao")
+    price_str = f"{price:.6f}" if price is not None else "N/A"
+    root_prop = display.get("root_prop")
+    root_str = f"{root_prop:.2f}" if root_prop is not None else "N/A"
+    fng = display.get("fear_and_greed_index")
+    fng_sent = display.get("fear_and_greed_sentiment", "")
+    fng_str = f"{fng:.0f} ({fng_sent})" if fng is not None else "N/A"
+    liq = display.get("liquidity_tao", 0)
+    liq_ratio = display.get("liquidity_ratio_pct")
+    liq_str = f"{liq:,.0f} TAO"
+    if liq_ratio is not None:
+        liq_str += f" ({liq_ratio}% of mcap)"
+    mcap = display.get("market_cap_tao", 0)
+    vol = display.get("volume_24h_tao", 0)
+    flow_7d = display.get("net_flow_7d_tao", 0)
+    flow_30d = display.get("net_flow_30d_tao", 0)
+    emission = display.get("emission_pct", 0)
+    active_v = display.get("active_validators", "?")
+    active_m = display.get("active_miners", "?")
+    startup = display.get("startup_mode", False)
+
+    msg1 = f"""**SN{netuid} — {_escape_domains(name)}**
+{date_str} · TaoStats + Desearch
+Signals: {signal_line}
+
+📊 **On-Chain Health**
+
+**Price:** {price_str} TAO
+**Root Prop:** {root_str}
+**Fear & Greed:** {fng_str}
+
+**Liquidity:** {liq_str}
+**Market Cap:** {_fmt_stake(mcap)}
+**Volume 24h:** {_fmt_stake(vol)}
+
+**Net Flow 7d:** {_fmt_flow(flow_7d)}
+**Net Flow 30d:** {_fmt_flow(flow_30d)}
+
+**Emission:** {emission}% of total
+**Validators:** {active_v} active · **Miners:** {active_m} active
+**Startup Mode:** {"Yes ⚠️" if startup else "No"}"""
+
+    # ── msg2: Validators + Social ──
+
+    validators = display.get("top_validators", [])
+    vali_lines = []
+    for v in validators[:5]:
+        vname = _escape_domains(v.get("name", "unknown"))
+        stake = _fmt_stake(v.get("stake_tao", 0))
+        apy7 = v.get("seven_day_apy")
+        apy_str = f"{apy7:.1f}%" if apy7 is not None else "N/A"
+        part = v.get("seven_day_participation")
+        part_str = f"{part*100:.0f}%" if part is not None else "N/A"
+        vali_lines.append(f"• **{vname}** · {stake} · {apy_str} 7d APY · {part_str} participation")
+
+    vali_block = "\n".join(vali_lines) if vali_lines else "No validator data available."
+
+    # Social — extract key points from web research summary
+    social_summary = ""
+    if isinstance(web_research, dict):
+        # Try to get the final summary from desearch AI response
+        summary = web_research.get("summary", "") or web_research.get("result", "")
+        if isinstance(summary, str) and summary:
+            # Truncate to keep msg2 under limit
+            social_summary = _escape_domains(summary[:800])
+        elif isinstance(web_research.get("data"), list):
+            # If it's a list of results, grab titles
+            items = web_research["data"][:5]
+            social_summary = "\n".join(
+                f"• {_escape_domains(str(item.get('title', '')))}"
+                for item in items if isinstance(item, dict)
+            )
+
+    # Twitter bullet points
+    tweets = social_data if isinstance(social_data, list) else []
+    tweet_lines = []
+    seen_users = set()
+    for t in tweets[:10]:
+        if not isinstance(t, dict):
+            continue
+        user = t.get("user", {})
+        username = user.get("username", "") if isinstance(user, dict) else ""
+        text = t.get("text", "")
+        if username and username not in seen_users and text:
+            seen_users.add(username)
+            short = _escape_domains(text[:120].replace("\n", " "))
+            tweet_lines.append(f"• @{_escape_domains(username)}: {short}")
+        if len(tweet_lines) >= 4:
+            break
+
+    social_block = ""
+    if social_summary:
+        social_block = social_summary
+    if tweet_lines:
+        if social_block:
+            social_block += "\n\n"
+        social_block += "\n".join(tweet_lines)
+    if not social_block:
+        social_block = "No recent social data found."
+
+    msg2 = f"""👥 **Validator Landscape**
+
+{vali_block}
+
+📣 **Social & Community**
+
+{social_block}"""
+
+    # Trim msg2 if over limit
+    if len(msg2) > 3800:
+        msg2 = msg2[:3750] + "\n\n_(truncated)_"
+
+    # ── msg3: Always null — chart image slot ──
+    msg3 = None
+
+    # ── msg4: Key Findings + Risks + Bottom Line ──
+
+    findings_lines = []
+    risk_lines = []
+    for i, s in enumerate(signals, 1):
+        emoji = _severity_emoji(s["severity"])
+        msg_text = _escape_domains(s.get("message", ""))
+        # Short signals → findings, severe ones → risks
+        if s["severity"] in ("critical", "high"):
+            risk_lines.append(f"{emoji} **{s['signal'].replace('_', ' ').title()}** — {msg_text}")
+        else:
+            findings_lines.append(f"{i}. {msg_text}")
+
+    # If no explicit risks, note that
+    if not risk_lines:
+        risk_lines.append("🟢 No high-severity risks detected.")
+    if not findings_lines:
+        findings_lines.append("1. No notable signals — fundamentals look clean.")
+
+    # Bottom line
+    crit_count = sev.get("critical", 0) + sev.get("high", 0)
+    if crit_count >= 2:
+        bottom = f"**⚠️ Multiple red flags detected. Approach SN{netuid} with extreme caution.**"
+    elif crit_count == 1:
+        bottom = f"**🟡 One significant concern flagged. Review the risk above before committing to SN{netuid}.**"
+    elif sev.get("medium", 0) >= 2:
+        bottom = f"**🟡 A few caution signals on SN{netuid}. Not dealbreakers, but size positions carefully.**"
+    else:
+        bottom = f"**🟢 SN{netuid} looks healthy on the metrics. No red flags in the data.**"
+
+    msg4 = f"""🔍 **Key Findings**
+
+{chr(10).join(findings_lines[:6])}
+
+⚠️ **Risk Factors**
+
+{chr(10).join(risk_lines[:5])}
+
+{bottom}"""
+
+    # Trim msg4 if over limit
+    if len(msg4) > 3800:
+        msg4 = msg4[:3750] + "\n\n_(truncated)_"
+
+    return {"msg1": msg1, "msg2": msg2, "msg3": msg3, "msg4": msg4}
+
+
 # ── Phase 3: Deep Dive ───────────────────────────────────────────────────────
 
 def deep_dive(netuid: int, signals: List[Dict]) -> Dict[str, Any]:
@@ -607,11 +913,6 @@ def research_subnet(netuid: int, phase_only: Optional[str] = None, include_deep:
     """Run the full research pipeline for a single subnet."""
     output = {"netuid": netuid}
 
-    # ASCII banner — generated first so the bot can print it before anything else
-    ascii_header = generate_ascii_header(netuid)
-    if ascii_header:
-        output["ascii_header"] = ascii_header
-
     # Phase 1: Broad Scan
     print(f"\n--- Phase 1: Broad Scan for SN{netuid} ---", file=sys.stderr)
     chain_data = collect_chain_data(netuid)
@@ -646,10 +947,22 @@ def research_subnet(netuid: int, phase_only: Optional[str] = None, include_deep:
         print(f"\n--- Phase 3: Deep Dive for SN{netuid} ---", file=sys.stderr)
         output["deep_dive"] = deep_dive(netuid, signals)
 
+    # Header card — styled PNG with key stats
+    header_path = generate_header_card(netuid, output["display"])
+    output["header_path"] = header_path  # null if Pillow missing
+
     # Net flow chart — generated after all phases, non-blocking on failure
     subnet_name = output.get("display", {}).get("subnet_name", "")
     chart_path = generate_netflow_chart(netuid, subnet_name)
     output["chart_path"] = chart_path  # null if generation failed
+
+    # Pre-formatted Telegram messages — ready to send directly
+    output["telegram"] = build_telegram_messages(
+        output["display"],
+        signals,
+        social_data.get("twitter", {}),
+        social_data.get("web_research", {}),
+    )
 
     return output
 

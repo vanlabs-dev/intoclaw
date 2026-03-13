@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **subnet-research**: Styled header card PNG (1200×300, dark theme, SN number, subnet name, key stats) via Pillow — replaces ASCII art banner
+- **subnet-research**: Pre-formatted `telegram` messages in JSON output — 4 ready-to-send strings with emoji anchors, domain escaping, and Telegram character limit compliance
+- **subnet-research**: `header_path` field in JSON output for the header card image
+
 ### Fixed
 
 - **subnet-research**: Removed TaoStats slippage simulation — endpoint returns wildly inaccurate values vs actual on-chain swaps. Liquidity risk now assessed via pool metrics (liquidity/market_cap ratio + volume)
@@ -15,11 +21,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- **subnet-research**: Reports split across multiple Telegram messages (4,096 char limit) — banner+overview, validators+social, chart, findings+risks
-- **subnet-research**: Mobile-friendly report format — no markdown tables (renders as code blocks on Telegram/Discord), use bold key-value pairs instead
-- **subnet-research**: ASCII banner must be plain text (not code block) in reports
-- **subnet-research**: Domain names in reports must be escaped (tao(dot)com) to prevent link preview embeds
+- **subnet-research**: Replaced pyfiglet with Pillow for header card generation
+- **subnet-research**: Domain names in reports auto-escaped (tao(dot)com) to prevent link preview embeds
 - **INSTALL.md**: Bots now check existing .env files before prompting for keys
+
+### Removed
+
+- **subnet-research**: `ascii_header` field removed from JSON output (replaced by `header_path` + `telegram`)
+- **subnet-research**: pyfiglet dependency removed
 
 ## [1.1.0] - 2026-03-13
 
