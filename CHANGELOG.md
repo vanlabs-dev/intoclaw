@@ -7,7 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-<!-- Add changes here during development. Rename to [x.y.z] - date when PRing to main. -->
+### Fixed
+
+- **subnet-research**: Removed TaoStats slippage simulation — endpoint returns wildly inaccurate values vs actual on-chain swaps. Liquidity risk now assessed via pool metrics (liquidity/market_cap ratio + volume)
+- **subnet-research**: Fixed emission display — was using raw on-chain `emission` int, now uses `projected_emission` fraction
+- **subnet-research**: Reduced validator concentration signal severity — high concentration is normal in early Bittensor ecosystem, only flags extreme (>80%) as informational
+
+### Changed
+
+- **subnet-research**: Mobile-friendly report format — no markdown tables (renders as code blocks on Telegram/Discord), use bold key-value pairs instead
+- **subnet-research**: ASCII banner must be plain text (not code block) in reports
+- **subnet-research**: Domain names in reports must be escaped (tao(dot)com) to prevent link preview embeds
+- **INSTALL.md**: Bots now check existing .env files before prompting for keys
 
 ## [1.1.0] - 2026-03-13
 

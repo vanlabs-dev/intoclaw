@@ -23,21 +23,18 @@ When a subnet is inactive (no real activity, no staking interest), the pool dyna
 - No buy/sell activity
 - Low or declining validator count
 
-### Liquidity & Slippage Risk
+### Liquidity Risk
 
 **Thresholds**:
-- Slippage > 5% on 10 TAO buy → medium risk
-- Slippage > 10% on 10 TAO buy → high risk
-- Liquidity < 5% of market cap → thin pool flag
+- Liquidity < 5% of market cap → thin pool flag (high)
+- Liquidity < 15% of market cap with low volume → moderate flag (low)
+- Volume < 3% of liquidity → low activity flag
 
 Liquidity matters because Bittensor subnet tokens trade in AMM pools (automated market makers). In a thin pool:
-- A 10 TAO purchase might move the price 5-15%
-- Exit at scale becomes very expensive (selling drives price down)
+- Exit at scale becomes expensive (selling drives price down)
 - Price metrics become less meaningful (easily manipulated by small trades)
 
-**Slippage estimate approach**: The script simulates a 10 TAO buy via the TaoStats slippage endpoint. This represents a modest trade — if a small trade already causes significant slippage, larger positions are impractical.
-
-In deep dive mode, the script also checks slippage at 1 TAO and 50 TAO to give a slippage curve.
+**Note on TaoStats slippage simulation**: The `dtao/slippage/v1` endpoint provides simulated slippage estimates, but testing shows these are wildly inaccurate compared to actual on-chain swaps (e.g. 14% simulated vs <0.4% actual for a 10 TAO buy). We assess liquidity risk via pool metrics instead — the liquidity/market_cap ratio and 24h volume give a more reliable picture of pool depth.
 
 ### Root Prop Thresholds
 
@@ -83,7 +80,7 @@ Individual signals tell a story. Combined signals tell a louder one.
 | Extreme fear + positive net flows | Contrarian opportunity — sentiment is negative but capital is flowing in. Worth deep dive. |
 | Strong dev activity + low price | Early-stage or undervalued. Check social sentiment for catalysts. |
 | No dev activity + declining validators | Dying subnet. Risk of deregistration. |
-| High slippage + high volume | Market is active but pool is small. Growing interest in a shallow market. |
+| Low liquidity + high volume | Market is active but pool is small. Growing interest in a shallow market. |
 
 ## Customizing Research Depth
 
@@ -114,7 +111,7 @@ Runs research on multiple subnets for side-by-side analysis. Be mindful of rate 
 ## Rate Limit Budget
 
 Each research run makes approximately:
-- **4 TaoStats calls** per subnet (pool, subnet_info, validator_yield, slippage) + 1 global (dev_activity)
+- **3 TaoStats calls** per subnet (pool, subnet_info, validator_yield) + 1 global (dev_activity)
 - **2 Desearch calls** per subnet (twitter search, AI web research)
 - **Deep dive adds**: 2-5 additional calls depending on signals
 

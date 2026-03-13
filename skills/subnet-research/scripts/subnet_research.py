@@ -305,12 +305,10 @@ def collect_chain_data(netuid: int) -> Dict[str, Any]:
     result["validators"] = _taostats_get(f"dtao/validator/yield/latest/v1?netuid={netuid}&limit=20")
     time.sleep(0.3)
 
-    # Slippage — simulate a 10 TAO buy to gauge pool depth
-    print(f"  Estimating slippage for SN{netuid}...", file=sys.stderr)
-    result["slippage"] = _taostats_get(
-        f"dtao/slippage/v1?netuid={netuid}&input_tokens=10000000000&direction=tao_to_alpha"
-    )
-    time.sleep(0.3)
+    # Note: We intentionally do NOT pull from the TaoStats slippage simulation endpoint.
+    # Testing shows it returns wildly inaccurate numbers compared to actual on-chain swaps
+    # (e.g. 14% simulated vs <0.4% actual for a 10 TAO buy). Liquidity depth is assessed
+    # via pool metrics instead (liquidity/market_cap ratio + volume).
 
     # Dev activity — check for this subnet
     print(f"  Pulling dev activity...", file=sys.stderr)
@@ -365,17 +363,6 @@ def _extract_subnet_item(chain_data: Dict) -> Dict:
     return {}
 
 
-def _extract_slippage_item(chain_data: Dict) -> Dict:
-    """Extract slippage data item."""
-    slippage_data = chain_data.get("slippage", {})
-    if "data" in slippage_data and slippage_data["data"]:
-        d = slippage_data["data"]
-        if isinstance(d, dict):
-            return d
-        if isinstance(d, list) and d:
-            return d[0]
-    return {}
-
 
 def identify_signals(chain_data: Dict, social_data: Dict) -> List[Dict[str, Any]]:
     """Evaluate data for notable signals."""
@@ -383,7 +370,6 @@ def identify_signals(chain_data: Dict, social_data: Dict) -> List[Dict[str, Any]
 
     pool_item = _extract_pool_item(chain_data)
     subnet_item = _extract_subnet_item(chain_data)
-    slippage_item = _extract_slippage_item(chain_data)
 
     # -- Inactive subnet detection --
     price = _safe_float(pool_item.get("price"))
@@ -400,32 +386,36 @@ def identify_signals(chain_data: Dict, social_data: Dict) -> List[Dict[str, Any]
                        f"This likely indicates an inactive/zombie subnet with no real market activity.{vol_msg}",
         })
 
-    # -- Low liquidity / slippage risk --
+    # -- Low liquidity risk --
     # liquidity and market_cap are in RAO — convert to TAO
-    # slippage is a decimal (e.g. 0.03586 = 3.586%)
+    # NOTE: We do NOT use the TaoStats slippage simulation endpoint as a signal.
+    # Testing shows it returns wildly inaccurate numbers compared to actual on-chain
+    # swaps (e.g. 14% simulated vs <0.4% actual). Instead we assess liquidity depth
+    # via pool metrics which are derived from actual on-chain state.
     liquidity_tao = _rao_to_tao(pool_item.get("liquidity"))
     market_cap_tao = _rao_to_tao(pool_item.get("market_cap"))
-    slippage_raw = _safe_float(slippage_item.get("slippage"))
-    slippage_pct = slippage_raw * 100 if slippage_raw is not None else None
+    volume_24h_tao_liq = _rao_to_tao(pool_item.get("tao_volume_24_hr"))
 
-    if slippage_pct is not None and slippage_pct > 5.0:
-        liq_msg = f" Pool liquidity: {liquidity_tao:,.2f} TAO." if liquidity_tao is not None else ""
-        signals.append({
-            "signal": "high_slippage",
-            "severity": "high" if slippage_pct > 10.0 else "medium",
-            "value": slippage_pct,
-            "message": f"Slippage on a 10 TAO buy is {slippage_pct:.2f}%.{liq_msg} "
-                       f"Large trades will move the price significantly.",
-        })
-    elif liquidity_tao is not None and market_cap_tao is not None and market_cap_tao > 0:
+    if liquidity_tao is not None and market_cap_tao is not None and market_cap_tao > 0:
         liq_ratio = liquidity_tao / market_cap_tao
         if liq_ratio < 0.05:
             signals.append({
                 "signal": "low_liquidity",
-                "severity": "medium",
+                "severity": "high",
                 "value": liq_ratio,
                 "message": f"Liquidity ({liquidity_tao:,.2f} TAO) is only {liq_ratio*100:.1f}% of market cap. "
-                           f"This pool is thin — expect slippage on larger trades.",
+                           f"This pool is thin — larger trades may see noticeable price impact.",
+            })
+        elif liq_ratio < 0.15:
+            vol_context = ""
+            if volume_24h_tao_liq is not None and volume_24h_tao_liq < liquidity_tao * 0.03:
+                vol_context = f" Daily volume ({volume_24h_tao_liq:,.2f} TAO) is also low relative to pool size."
+            signals.append({
+                "signal": "moderate_liquidity",
+                "severity": "low",
+                "value": liq_ratio,
+                "message": f"Liquidity ({liquidity_tao:,.2f} TAO) is {liq_ratio*100:.1f}% of market cap. "
+                           f"Adequate for small-medium trades but size in carefully on larger positions.{vol_context}",
             })
 
     # -- Root prop --
@@ -503,21 +493,16 @@ def identify_signals(chain_data: Dict, social_data: Dict) -> List[Dict[str, Any]
             if total_stake > 0:
                 max_stake = max(stakes)
                 top_pct = (max_stake / total_stake) * 100
+                # Note: high concentration is common across Bittensor subnets at this
+                # stage of the ecosystem. Only flag extreme cases as informational.
                 if top_pct > 80:
                     signals.append({
                         "signal": "stake_concentration_extreme",
-                        "severity": "high",
+                        "severity": "low",
                         "value": top_pct,
                         "message": f"Top validator holds {top_pct:.1f}% of all stake. "
-                                   f"Extreme concentration — subnet governance is effectively single-party.",
-                    })
-                elif top_pct > 50:
-                    signals.append({
-                        "signal": "stake_concentration_high",
-                        "severity": "medium",
-                        "value": top_pct,
-                        "message": f"Top validator holds {top_pct:.1f}% of all stake. "
-                                   f"High concentration — consider diversification risk.",
+                                   f"Common in early-stage subnets but worth noting — "
+                                   f"governance is concentrated. Monitor as subnet grows.",
                     })
 
     # -- Social concentration --
@@ -545,7 +530,6 @@ def build_display_summary(chain_data: Dict, signals: List[Dict]) -> Dict[str, An
     """
     pool_item = _extract_pool_item(chain_data)
     subnet_item = _extract_subnet_item(chain_data)
-    slippage_item = _extract_slippage_item(chain_data)
 
     # Validators — use correct field names: "name" and "seven_day_apy"
     validators_data = chain_data.get("validators", {})
@@ -561,9 +545,10 @@ def build_display_summary(chain_data: Dict, signals: List[Dict]) -> Dict[str, An
             "seven_day_participation": _safe_float(v.get("seven_day_epoch_participation")),
         })
 
-    # Slippage — API returns decimal (e.g. 0.03586), convert to percentage
-    slippage_raw = _safe_float(slippage_item.get("slippage"))
-    slippage_pct = round(slippage_raw * 100, 2) if slippage_raw is not None else None
+    # Liquidity depth — ratio of liquidity to market cap
+    liq_tao = _rao_to_tao(pool_item.get("liquidity")) or 0
+    mcap_tao = _rao_to_tao(pool_item.get("market_cap")) or 0
+    liq_ratio_pct = round((liq_tao / mcap_tao) * 100, 1) if mcap_tao > 0 else None
 
     display = {
         "subnet_name": pool_item.get("name", "Unknown"),
@@ -572,10 +557,10 @@ def build_display_summary(chain_data: Dict, signals: List[Dict]) -> Dict[str, An
         "root_prop": _safe_float(pool_item.get("root_prop")),
         "fear_and_greed_index": _safe_float(pool_item.get("fear_and_greed_index")),
         "fear_and_greed_sentiment": pool_item.get("fear_and_greed_sentiment", ""),
-        "liquidity_tao": round(_rao_to_tao(pool_item.get("liquidity")) or 0, 2),
-        "market_cap_tao": round(_rao_to_tao(pool_item.get("market_cap")) or 0, 2),
+        "liquidity_tao": round(liq_tao, 2),
+        "market_cap_tao": round(mcap_tao, 2),
         "volume_24h_tao": round(_rao_to_tao(pool_item.get("tao_volume_24_hr")) or 0, 2),
-        "slippage_10_tao_pct": slippage_pct,
+        "liquidity_ratio_pct": liq_ratio_pct,
         "net_flow_7d_tao": round(_rao_to_tao(subnet_item.get("net_flow_7_days")) or 0, 2),
         "net_flow_30d_tao": round(_rao_to_tao(subnet_item.get("net_flow_30_days")) or 0, 2),
         # emission (raw on-chain int) vs projected_emission (fraction of total, e.g. 0.029 = 2.9%)
@@ -602,15 +587,9 @@ def deep_dive(netuid: int, signals: List[Dict]) -> Dict[str, Any]:
     result = {}
     signal_names = {s["signal"] for s in signals}
 
-    if "high_slippage" in signal_names or "low_liquidity" in signal_names:
-        print(f"  Deep dive: slippage at multiple trade sizes...", file=sys.stderr)
-        result["slippage_1"] = _taostats_get(
-            f"dtao/slippage/v1?netuid={netuid}&input_tokens=1000000000&direction=tao_to_alpha"
-        )
-        time.sleep(0.3)
-        result["slippage_50"] = _taostats_get(
-            f"dtao/slippage/v1?netuid={netuid}&input_tokens=50000000000&direction=tao_to_alpha"
-        )
+    if "low_liquidity" in signal_names:
+        print(f"  Deep dive: metagraph for stake distribution (liquidity context)...", file=sys.stderr)
+        result["metagraph_liquidity"] = _taostats_get(f"metagraph/latest/v1?netuid={netuid}&limit=20")
         time.sleep(0.3)
 
     if any(s["signal"].startswith("capital_outflow") for s in signals):
@@ -658,7 +637,6 @@ def research_subnet(netuid: int, phase_only: Optional[str] = None, include_deep:
     output["pool"] = chain_data.get("pool", {})
     output["subnet_info"] = chain_data.get("subnet_info", {})
     output["validators"] = chain_data.get("validators", {})
-    output["slippage"] = chain_data.get("slippage", {})
     output["social"] = social_data.get("twitter", {})
     output["web_research"] = social_data.get("web_research", {})
 

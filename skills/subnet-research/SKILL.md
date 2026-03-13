@@ -30,6 +30,23 @@ This is an IntoClaw skill. When you research a subnet for the user, narrate each
 
 Multi-phase subnet research combining live chain data (TaoStats), social sentiment (Desearch/X), and Bittensor domain knowledge into a structured report. Inspired by iterative research methodology: broad scan first, identify signals, then deep dive on what matters.
 
+### Mobile-Friendly Formatting Rules
+
+Reports are often read on mobile (Telegram, Discord). Follow these rules strictly:
+
+1. **No markdown tables.** Tables render as code blocks on mobile and look terrible. Use **bold key: value** pairs instead:
+   - ✅ `**Price:** 0.004618 TAO`
+   - ❌ `| Price | 0.004618 TAO | Low |`
+
+2. **ASCII banner as plain text.** Print the `ascii_header` as regular text, never in a code block (no triple backticks). If it renders poorly on mobile, skip it and use a bold text header instead: `**═══ SN46 — RESI ═══**`
+
+3. **Domain names must be escaped** to prevent link preview embeds (Telegram, Discord, etc). Always write domains with `(dot)` instead of `.`:
+   - ✅ `tao(dot)bot`, `tao(dot)com`, `taostats(dot)io`
+   - ❌ `tao.bot`, `tao.com`, `taostats.io`
+   This applies to validator names, URLs in prose, and any domain-like text in the report body.
+
+4. **Sections as flowing prose with bold labels**, not grid layouts. Let the conversation breathe.
+
 ### Overlaps
 
 This skill shares trigger phrases with three other skills:
@@ -88,7 +105,6 @@ Adjust the path if the skill is installed elsewhere. The script pulls:
 - **Pool data** (TaoStats): price, root_prop, fear & greed, volume, liquidity, market cap
 - **Subnet info** (TaoStats): emissions, net flows (7d/30d), hyperparams, startup mode
 - **Validator yields** (TaoStats): top validators by 7d APY, participation rates
-- **Slippage estimate** (TaoStats): simulated 10 TAO buy to gauge pool depth
 - **X/Twitter sentiment** (Desearch): recent posts mentioning the subnet
 - **Web research** (Desearch): AI-synthesized overview from web + twitter + reddit
 
@@ -110,11 +126,11 @@ The script includes a `signals` section in its output. Key checks:
 | Signal | Threshold | Meaning |
 |---|---|---|
 | **Inactive subnet** | Price consistently > 1 TAO | Likely a zombie subnet — no real market activity, price stays inflated above TAO parity. Flag prominently. |
-| **Low liquidity** | Low pool TVL or 24h volume relative to market cap | High slippage risk — large trades cause outsized price swings. Check the slippage estimate in the data. |
+| **Low liquidity** | Liquidity < 5% of market cap | Pool is thin — larger trades may see noticeable price impact. Check volume too. |
 | **Root prop elevated** | `root_prop > 0.30` | Price partly driven by protocol injection, not organic demand. Above 0.70 = artificial pump. |
 | **Capital outflow** | `net_flow_7_days < 0` or `net_flow_30_days < 0` | Money leaving the subnet. Check if temporary dip or sustained trend. |
 | **Extreme sentiment** | `fear_and_greed < 30` or `> 70` | Market extremes. Fear can mean buy opportunity; greed means caution. |
-| **Stake concentration** | Top validator holds > 50% of stake | Governance risk — one party controls the subnet. Above 80% = extreme. |
+| **Stake concentration** | Top validator holds > 80% of stake | Worth noting but common in early Bittensor ecosystem. Informational, not a red flag unless extreme. |
 | **Concentrated X chatter** | Few accounts dominating discussion | Organic community vs shill campaign. Note who's talking. |
 | **Pruning risk** | `in_danger = true` | Subnet at risk of deregistration. Check immunity period. |
 
@@ -132,11 +148,11 @@ This phase is conditional — only run it for signals that warrant more investig
 
 | If Phase 2 found... | Deep dive action |
 |---|---|
-| Validator yields look interesting | Pull full metagraph: `taostats_metagraph <netuid>` — check stake concentration, participation |
+| Validator yields look interesting | Pull full metagraph: `taostats_metagraph <netuid>` — check stake distribution, participation |
 | Capital outflow | Check delegation history: is it a few large unstakers or broad exodus? |
 | Strong social signals | Run targeted X search for specific concerns or narratives found in Phase 1 |
 | Pruning risk flagged | Pull pruning data to confirm severity and timeline |
-| Low liquidity flagged | Run slippage estimates at different trade sizes (1, 10, 50 TAO) |
+| Low liquidity flagged | Pull metagraph for stake distribution context |
 
 Use the chain-metrics and desearch bash helpers or the Python script's `--deep` flag for targeted pulls.
 
@@ -147,63 +163,57 @@ Use the chain-metrics and desearch bash helpers or the Python script's `--deep` 
 Structure your output like this. Skip sections that don't apply — a short, focused report beats a bloated one.
 
 ```markdown
-{ascii_header}
+**═══ SN{netuid} — {subnet name} ═══**
 
-# Subnet Research: SN{netuid} — {subnet name}
+**Subnet Research: SN{netuid} — {subnet name}**
 > Generated: {date} | Data: TaoStats + Desearch
 
-## Overview
+**Overview**
 What this subnet does, who's behind it, and why it exists.
 (Combine bittensor-knowledge context with web research results.)
 
-## On-Chain Health
+**On-Chain Health**
 
-| Metric | Value | Signal |
-|--------|-------|--------|
-| Price | {price} TAO | |
-| Root Prop | {root_prop} | {Good entry / Caution / Avoid} |
-| Fear & Greed | {index} ({sentiment}) | |
-| Liquidity | {liquidity} TAO | {Adequate / Thin / Danger} |
-| Slippage (10 TAO buy) | {slippage_pct}% | {Acceptable / High / Extreme} |
-| Net Flow (7d) | {flow} TAO | {Inflow / Outflow} |
-| Net Flow (30d) | {flow} TAO | {Trend direction} |
-| Emission | {emission} | |
-| Market Cap | {mcap} TAO | |
-| Dev Activity | {status} | {Active / Quiet / None} |
-| Startup Mode | {yes/no} | |
+**Price:** {price} TAO
+**Root Prop:** {root_prop} — {interpretation}
+**Fear & Greed:** {index} ({sentiment})
+**Liquidity:** {liquidity} TAO ({liquidity_ratio_pct}% of market cap) — {Adequate / Thin}
+**Volume 24h:** {volume} TAO
+**Market Cap:** {mcap} TAO
+**Net Flow (7d):** {flow} TAO — {Inflow ✅ / Outflow ⚠️}
+**Net Flow (30d):** {flow} TAO — {trend direction}
+**Emission:** {emission_pct}% of total
+**Active Validators:** {n}  |  **Active Miners:** {n}
+**Startup Mode:** {yes/no}
 
-## Validator Landscape
-- Top validators by 7d APY (table)
-- Stake concentration — is it spread or whale-dominated?
-- Epoch participation rates
+**Validator Landscape**
+List top validators with bold names and key stats inline:
+**{name}** — {stake} TAO staked, {apy}% 7d APY, {participation}% participation
+(Remember to escape domain-like validator names: tao(dot)bot, not tao.bot)
 
-## Social Sentiment
-- Recent X/Twitter activity summary
-- Key voices and narratives
-- Community size and engagement level
-- Sentiment direction (bullish / bearish / neutral)
+**Social Sentiment**
+Prose summary of X/Twitter activity, key voices, narratives, sentiment direction.
 
-## Net Flow Chart
-If `chart_path` is present in the output, show the 30-day net flow chart here.
-The chart is a PNG file at the path — attach or display it inline.
+**Net Flow Chart**
+If `chart_path` is present in the output, attach the 30-day net flow PNG.
 
-## Key Findings
-1. {Signal} — {interpretation and what it means for the user}
-2. {Signal} — {interpretation}
-...
+**Key Findings**
+1. **{Finding}** — {interpretation and what it means for the user}
+2. **{Finding}** — {interpretation}
 
-## Risk Factors
-- {Risk} — {severity: Low/Medium/High/Critical} — {explanation}
+**Risk Factors**
+• 🔴/🟡/🟢 **{Risk}** — {severity} — {explanation}
 
-## Comparison (if multiple subnets requested)
-| Metric | SN{A} | SN{B} | ... |
-|--------|-------|-------|-----|
-| ... | ... | ... | ... |
+**Comparison** (if multiple subnets requested)
+Side-by-side bold labels, not tables.
 ```
+
+> **IMPORTANT**: No markdown tables anywhere in the report. Use bold key-value pairs.
+> Escape all domain names with (dot). Print ASCII header as plain text, not in code blocks.
 
 ### Adapting the report
 
-- For a user evaluating staking: emphasize validator yields, root_prop, slippage, and liquidity
+- For a user evaluating staking: emphasize validator yields, root_prop, liquidity depth, and net flows
 - For a developer: emphasize dev activity, emission model, and community engagement
 - For a trader: emphasize price action, volume, net flows, and fear/greed
 - Always lead with the most important finding, not the most boring metric
@@ -234,10 +244,10 @@ The script outputs JSON with these top-level fields:
 |---|---|
 | `ascii_header` | ASCII art banner (e.g. "SN19") — print this at the top of every report. Null if pyfiglet is missing. |
 | `chart_path` | File path to a 30-day net flow PNG chart (dark theme, TAO gold line). Show/attach this in the report. Null if matplotlib is missing or generation fails. |
-| `pool`, `subnet_info`, `validators`, `slippage` | Raw TaoStats API responses — use for deep inspection if needed. |
+| `pool`, `subnet_info`, `validators` | Raw TaoStats API responses — use for deep inspection if needed. |
 | `social`, `web_research` | Raw Desearch API responses. |
 | `signals` | Detected signals with severity, value, and plain-English message. |
-| `display` | Pre-converted, human-readable values (TAO not rao, percentages not decimals, top validators with correct names and APYs) — narrate directly from it without unit conversion. |
+| `display` | Pre-converted, human-readable values (TAO not rao, percentages not decimals, liquidity_ratio_pct for pool depth, top validators with correct names and APYs) — narrate directly from it without unit conversion. |
 
 CLI options:
 - `--netuid N` (required) — primary subnet to research
@@ -265,7 +275,7 @@ After setting up API keys, test:
 python3 skills/subnet-research/scripts/subnet_research.py --netuid 1 --phase broad
 ```
 
-**Expected**: JSON output with `pool`, `subnet_info`, `validators`, `slippage`, `social`, `web_research`, and `signals` sections. If you get authentication errors, check that both `TAOSTATS_API_KEY` and `DESEARCH_API_KEY` are set.
+**Expected**: JSON output with `pool`, `subnet_info`, `validators`, `social`, `web_research`, and `signals` sections. If you get authentication errors, check that both `TAOSTATS_API_KEY` and `DESEARCH_API_KEY` are set.
 
 Test prompts:
 - "Research subnet 19" → full 3-phase report with on-chain data, social sentiment, and key findings
