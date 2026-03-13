@@ -32,17 +32,9 @@ Multi-phase subnet research combining live chain data (TaoStats), social sentime
 
 ### Telegram-Ready Output
 
-The script outputs a `telegram` object with 4 pre-formatted message strings in **HTML format** (for Telegram Bot API `parse_mode: "HTML"`), ready to send directly. **Use these instead of formatting the raw display data yourself.** Each message is HTML-escaped, domain-escaped (domains use `(dot)` to prevent link previews), and under 3,800 characters (Telegram limit is 4,096).
+The script outputs a `telegram` field containing a pre-formatted HTML string ready to send via Telegram Bot API (`parse_mode: "HTML"`). **Use this instead of formatting the raw display data yourself.** The message is HTML-escaped, domain-escaped (domains use `(dot)` to prevent link previews), and ready to send directly.
 
-**Important:** When sending these messages via the Telegram Bot API, set `parse_mode` to `HTML`. The messages use `<b>bold</b>` and `<i>italic</i>` tags — not Markdown.
-
-**How to send the report:**
-1. **Send `telegram.msg1`** — overview + on-chain health metrics
-2. **Send `telegram.msg2`** — validator landscape + social sentiment
-3. **Send `telegram.msg3`** — always null (reserved for future use)
-4. **Send `telegram.msg4`** — key findings + risk factors + bottom line
-
-Pause briefly between messages so they arrive in order.
+**Important:** When sending via the Telegram Bot API, set `parse_mode` to `HTML`. The message uses `<b>bold</b>` and `<i>italic</i>` tags — not Markdown.
 
 ### Formatting Rules
 
@@ -165,16 +157,13 @@ Use the chain-metrics and desearch bash helpers or the Python script's `--deep` 
 
 ## Report Delivery
 
-**Use the pre-formatted `telegram` messages.** The script builds 4 message strings ready to send directly. Don't reformat the `display` data yourself — the messages are already escaped, emoji-anchored, and under Telegram's character limit.
+**Use the pre-formatted `telegram` message.** The script builds a ready-to-send HTML string. Don't reformat the `display` data yourself — the message is already escaped, emoji-anchored, and formatted for Telegram.
 
-**Delivery order:**
-1. Send `telegram.msg1` as text (overview + on-chain health)
-2. Send `telegram.msg2` as text (validators + social)
-3. Send `telegram.msg4` as text (findings + risks + bottom line)
+**Send `telegram`** as text with `parse_mode: "HTML"`.
 
-**For comparison mode** (multiple subnets): each subnet in the output has its own `telegram` object. Send each subnet's report sequentially, with a brief separator between them.
+**For comparison mode** (multiple subnets): each subnet in the output has its own `telegram` field. Send each subnet's report sequentially, with a brief separator between them.
 
-> **If you add any narration around the messages** (context, interpretation, follow-ups), remember: no markdown tables, escape domain names with (dot), and keep each message under 3,800 characters.
+> **If you add any narration around the message** (context, interpretation, follow-ups), remember: no markdown tables, escape domain names with (dot), and use HTML formatting.
 
 ### Adapting the report
 
@@ -207,11 +196,11 @@ The script outputs JSON with these top-level fields:
 
 | Field | Description |
 |---|---|
-| `telegram` | Object with 4 pre-formatted message strings: `msg1` (overview + metrics), `msg2` (validators + social), `msg3` (always null — reserved), `msg4` (findings + risks + bottom line). **Use these directly** — they're pre-escaped, emoji-anchored, and under the Telegram character limit. |
+| `telegram` | Pre-formatted HTML string containing the full research report (overview, metrics, validators, social, findings, risks, bottom line). **Use this directly** — it's pre-escaped, emoji-anchored, and ready for `parse_mode: "HTML"`. |
 | `pool`, `subnet_info`, `validators` | Raw TaoStats API responses — use for deep inspection if needed. |
 | `social`, `web_research` | Raw Desearch API responses. |
 | `signals` | Detected signals with severity, value, and plain-English message. |
-| `display` | Pre-converted, human-readable values (TAO not rao, percentages not decimals, liquidity_ratio_pct for pool depth, top validators with correct names and APYs). The `telegram` messages are built from this — you shouldn't need to read `display` directly. |
+| `display` | Pre-converted, human-readable values (TAO not rao, percentages not decimals, liquidity_ratio_pct for pool depth, top validators with correct names and APYs). The `telegram` message is built from this — you shouldn't need to read `display` directly. |
 
 CLI options:
 - `--netuid N` (required) — primary subnet to research

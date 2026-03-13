@@ -483,24 +483,23 @@ def _html_escape(text: str) -> str:
     return text.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
 
 
-def build_telegram_messages(
+def build_telegram_message(
     display: Dict[str, Any],
     signals: List[Dict],
     social_data: Dict,
     web_research: Dict,
-) -> Dict[str, Optional[str]]:
-    """Build 4 pre-formatted Telegram message strings in HTML parse_mode.
+) -> str:
+    """Build a pre-formatted Telegram message string in HTML parse_mode.
 
     Uses Telegram Bot API HTML formatting:
       <b>bold</b>  <i>italic</i>  <code>mono</code>
-    Each message stays under 3800 chars (Telegram limit is 4096).
     """
 
     netuid = display.get("netuid", "?")
     name = _html_escape(_escape_domains(display.get("subnet_name", "Unknown")))
     date_str = datetime.now().strftime("%Y-%m-%d")
 
-    # ── msg1: Header + Overview + On-Chain Health ──
+    # ── Signal summary ──
 
     sev = display.get("signal_severities", {})
     signal_summary_parts = []
@@ -509,6 +508,8 @@ def build_telegram_messages(
     if sev.get("medium", 0): signal_summary_parts.append(f"🟡 {sev['medium']} medium")
     if sev.get("low", 0): signal_summary_parts.append(f"🟢 {sev['low']} low")
     signal_line = " · ".join(signal_summary_parts) if signal_summary_parts else "🟢 No notable signals"
+
+    # ── On-Chain Health ──
 
     price = display.get("price_tao")
     price_str = f"{price:.6f}" if price is not None else "N/A"
@@ -531,28 +532,7 @@ def build_telegram_messages(
     active_m = display.get("active_miners", "?")
     startup = display.get("startup_mode", False)
 
-    msg1 = f"""<b>SN{netuid} — {name}</b>
-{date_str} · TaoStats + Desearch
-Signals: {signal_line}
-
-📊 <b>On-Chain Health</b>
-
-<b>Price:</b> {price_str} TAO
-<b>Root Prop:</b> {root_str}
-<b>Fear &amp; Greed:</b> {fng_str}
-
-<b>Liquidity:</b> {liq_str}
-<b>Market Cap:</b> {_fmt_stake(mcap)}
-<b>Volume 24h:</b> {_fmt_stake(vol)}
-
-<b>Net Flow 7d:</b> {_fmt_flow(flow_7d)}
-<b>Net Flow 30d:</b> {_fmt_flow(flow_30d)}
-
-<b>Emission:</b> {emission}%
-<b>Validators:</b> {active_v} active · <b>Miners:</b> {active_m} active
-<b>Startup Mode:</b> {"Yes ⚠️" if startup else "No"}"""
-
-    # ── msg2: Validators + Social ──
+    # ── Validators ──
 
     validators = display.get("top_validators", [])
     vali_lines = []
@@ -567,20 +547,20 @@ Signals: {signal_line}
 
     vali_block = "\n".join(vali_lines) if vali_lines else "No validator data available."
 
-    # Social — extract key points from web research summary
+    # ── Social ──
+
     social_summary = ""
     if isinstance(web_research, dict):
         summary = web_research.get("summary", "") or web_research.get("result", "")
         if isinstance(summary, str) and summary:
-            social_summary = _html_escape(_escape_domains(summary[:800]))
+            social_summary = _html_escape(_escape_domains(summary[:600]))
         elif isinstance(web_research.get("data"), list):
-            items = web_research["data"][:5]
+            items = web_research["data"][:3]
             social_summary = "\n".join(
                 f"• {_html_escape(_escape_domains(str(item.get('title', ''))))}"
                 for item in items if isinstance(item, dict)
             )
 
-    # Twitter bullet points
     tweets = social_data if isinstance(social_data, list) else []
     tweet_lines = []
     seen_users = set()
@@ -592,10 +572,10 @@ Signals: {signal_line}
         text = t.get("text", "")
         if username and username not in seen_users and text:
             seen_users.add(username)
-            short = _html_escape(_escape_domains(text[:120].replace("\n", " ")))
+            short = _html_escape(_escape_domains(text[:100].replace("\n", " ")))
             uname = _html_escape(_escape_domains(username))
             tweet_lines.append(f"• @{uname}: {short}")
-        if len(tweet_lines) >= 4:
+        if len(tweet_lines) >= 3:
             break
 
     social_block = ""
@@ -608,22 +588,7 @@ Signals: {signal_line}
     if not social_block:
         social_block = "No recent social data found."
 
-    msg2 = f"""👥 <b>Validator Landscape</b>
-
-{vali_block}
-
-📣 <b>Social &amp; Community</b>
-
-{social_block}"""
-
-    # Trim msg2 if over limit
-    if len(msg2) > 3800:
-        msg2 = msg2[:3750] + "\n\n<i>(truncated)</i>"
-
-    # ── msg3: Reserved ──
-    msg3 = None
-
-    # ── msg4: Key Findings + Risks + Bottom Line ──
+    # ── Findings + Risks ──
 
     findings_lines = []
     risk_lines = []
@@ -655,7 +620,38 @@ Signals: {signal_line}
     else:
         bottom = f"<b>🟢 SN{netuid} looks healthy on the metrics. No red flags in the data.</b>"
 
-    msg4 = f"""🔍 <b>Key Findings</b>
+    # ── Assemble ──
+
+    message = f"""<b>SN{netuid} — {name}</b>
+{date_str} · TaoStats + Desearch
+Signals: {signal_line}
+
+📊 <b>On-Chain Health</b>
+
+<b>Price:</b> {price_str} TAO
+<b>Root Prop:</b> {root_str}
+<b>Fear &amp; Greed:</b> {fng_str}
+
+<b>Liquidity:</b> {liq_str}
+<b>Market Cap:</b> {_fmt_stake(mcap)}
+<b>Volume 24h:</b> {_fmt_stake(vol)}
+
+<b>Net Flow 7d:</b> {_fmt_flow(flow_7d)}
+<b>Net Flow 30d:</b> {_fmt_flow(flow_30d)}
+
+<b>Emission:</b> {emission}%
+<b>Validators:</b> {active_v} active · <b>Miners:</b> {active_m} active
+<b>Startup Mode:</b> {"Yes ⚠️" if startup else "No"}
+
+👥 <b>Validator Landscape</b>
+
+{vali_block}
+
+📣 <b>Social &amp; Community</b>
+
+{social_block}
+
+🔍 <b>Key Findings</b>
 
 {chr(10).join(findings_lines[:6])}
 
@@ -665,10 +661,7 @@ Signals: {signal_line}
 
 {bottom}"""
 
-    if len(msg4) > 3800:
-        msg4 = msg4[:3750] + "\n\n<i>(truncated)</i>"
-
-    return {"msg1": msg1, "msg2": msg2, "msg3": msg3, "msg4": msg4}
+    return message
 
 
 # ── Phase 3: Deep Dive ───────────────────────────────────────────────────────
@@ -748,8 +741,8 @@ def research_subnet(netuid: int, phase_only: Optional[str] = None, include_deep:
         print(f"\n--- Phase 3: Deep Dive for SN{netuid} ---", file=sys.stderr)
         output["deep_dive"] = deep_dive(netuid, signals)
 
-    # Pre-formatted Telegram messages — ready to send directly
-    output["telegram"] = build_telegram_messages(
+    # Pre-formatted Telegram message — ready to send directly
+    output["telegram"] = build_telegram_message(
         output["display"],
         signals,
         social_data.get("twitter", {}),

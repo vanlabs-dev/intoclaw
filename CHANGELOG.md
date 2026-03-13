@@ -9,26 +9,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- **subnet-research**: Styled header card PNG (1200×300, dark theme, SN number, subnet name, key stats) via Pillow — replaces ASCII art banner
-- **subnet-research**: Pre-formatted `telegram` messages in JSON output — 4 ready-to-send strings with emoji anchors, domain escaping, and Telegram character limit compliance
-- **subnet-research**: `header_path` field in JSON output for the header card image
+- **subnet-research**: Pre-formatted `telegram` HTML message in JSON output — ready-to-send string with emoji anchors, domain escaping, and HTML parse_mode formatting
+- **Development workflow**: `dev` branch, PR template, CONTRIBUTING.md, GitHub Actions CI (`validate-skill.yml`)
 
 ### Fixed
 
 - **subnet-research**: Removed TaoStats slippage simulation — endpoint returns wildly inaccurate values vs actual on-chain swaps. Liquidity risk now assessed via pool metrics (liquidity/market_cap ratio + volume)
 - **subnet-research**: Fixed emission display — was using raw on-chain `emission` int, now uses `projected_emission` fraction
-- **subnet-research**: Removed validator concentration signal entirely — it's the norm across the ecosystem, flagging it on every subnet is noise
+- **subnet-research**: Fixed APY display — `seven_day_apy` returns a fraction, now correctly multiplied by 100 for percentage
+- **subnet-research**: Removed validator concentration signal — ecosystem-wide norm, flagging it on every subnet is noise
 
 ### Changed
 
-- **subnet-research**: Replaced pyfiglet with Pillow for header card generation
+- **subnet-research**: Telegram output uses HTML format (`<b>bold</b>`) instead of Markdown — more reliable across Telegram clients
 - **subnet-research**: Domain names in reports auto-escaped (tao(dot)com) to prevent link preview embeds
 - **INSTALL.md**: Bots now check existing .env files before prompting for keys
 
 ### Removed
 
-- **subnet-research**: `ascii_header` field removed from JSON output (replaced by `header_path` + `telegram`)
-- **subnet-research**: pyfiglet dependency removed
+- **subnet-research**: Image generation removed (header card, charts) — not compatible with Telegram bot flow
+- **subnet-research**: pyfiglet, Pillow, matplotlib dependencies removed — only `requests` required
 
 ## [1.1.0] - 2026-03-13
 
