@@ -61,6 +61,12 @@ So if the user already has keys set up for their chain data or search skills, th
 
 **If the user doesn't have keys yet:** Walk them through getting a TaoStats API key (free at dash.taostats.io) and a Desearch API key (funded account at desearch.ai). They can put both keys in a single `.env` file at the workspace root and all skills will pick them up.
 
+**Python dependencies:** The script needs `requests`, `pyfiglet`, and `matplotlib`. Install from the skill directory:
+```bash
+pip install -r skills/subnet-research/requirements.txt
+```
+If `pyfiglet` or `matplotlib` are missing, the script still runs — it just skips the ASCII banner and chart generation.
+
 ---
 
 ## Research Workflow
@@ -141,6 +147,8 @@ Use the chain-metrics and desearch bash helpers or the Python script's `--deep` 
 Structure your output like this. Skip sections that don't apply — a short, focused report beats a bloated one.
 
 ```markdown
+{ascii_header}
+
 # Subnet Research: SN{netuid} — {subnet name}
 > Generated: {date} | Data: TaoStats + Desearch
 
@@ -174,6 +182,10 @@ What this subnet does, who's behind it, and why it exists.
 - Key voices and narratives
 - Community size and engagement level
 - Sentiment direction (bullish / bearish / neutral)
+
+## Net Flow Chart
+If `chart_path` is present in the output, show the 30-day net flow chart here.
+The chart is a PNG file at the path — attach or display it inline.
 
 ## Key Findings
 1. {Signal} — {interpretation and what it means for the user}
@@ -216,7 +228,16 @@ If a 429 comes back, the script retries automatically (respects `Retry-After` he
 |---|---|---|
 | `scripts/subnet_research.py` | Multi-phase data collection + signal analysis | `python3 scripts/subnet_research.py --netuid 19` |
 
-The script outputs JSON with sections: `pool`, `subnet_info`, `validators`, `slippage`, `social`, `web_research`, `signals`, and `display`. The `display` block contains pre-converted, human-readable values (TAO not rao, percentages not decimals, top validators with correct names and APYs) — narrate directly from it without unit conversion.
+The script outputs JSON with these top-level fields:
+
+| Field | Description |
+|---|---|
+| `ascii_header` | ASCII art banner (e.g. "SN19") — print this at the top of every report. Null if pyfiglet is missing. |
+| `chart_path` | File path to a 30-day net flow PNG chart (dark theme, TAO gold line). Show/attach this in the report. Null if matplotlib is missing or generation fails. |
+| `pool`, `subnet_info`, `validators`, `slippage` | Raw TaoStats API responses — use for deep inspection if needed. |
+| `social`, `web_research` | Raw Desearch API responses. |
+| `signals` | Detected signals with severity, value, and plain-English message. |
+| `display` | Pre-converted, human-readable values (TAO not rao, percentages not decimals, top validators with correct names and APYs) — narrate directly from it without unit conversion. |
 
 CLI options:
 - `--netuid N` (required) — primary subnet to research

@@ -50,7 +50,7 @@ Also check the `conflicts_with` entries across IntoClaw's own skills — if the 
 
 ```bash
 # Copy the skill directory to the workspace
-cp -r <repo-path>/skills/<skill-name> ~/.openclaw/workspace/skills/<skill-name>/
+cp -r <repo-path>/skills/<skill-name>/. ~/.openclaw/workspace/skills/<skill-name>/
 ```
 
 Tell the user what you're doing: "I'm copying the [skill name] skill into your OpenClaw workspace so your bot can use it."
@@ -134,7 +134,7 @@ If the user already has IntoClaw skills and the repo has been updated:
 cd /tmp/intoclaw && git pull
 
 # Re-copy the updated skill
-cp -r /tmp/intoclaw/skills/<skill-name> ~/.openclaw/workspace/skills/<skill-name>/
+cp -r /tmp/intoclaw/skills/<skill-name>/. ~/.openclaw/workspace/skills/<skill-name>/
 
 # Restart to pick up changes
 openclaw gateway restart

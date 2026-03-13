@@ -16,7 +16,9 @@ import argparse
 import json
 import os
 import sys
+import tempfile
 import time
+from datetime import datetime
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
@@ -25,6 +27,22 @@ try:
 except ImportError:
     print("Error: 'requests' library required. Install with: pip install requests", file=sys.stderr)
     sys.exit(1)
+
+# Optional deps — degrade gracefully if missing
+try:
+    import pyfiglet
+    HAS_PYFIGLET = True
+except ImportError:
+    HAS_PYFIGLET = False
+
+try:
+    import matplotlib
+    matplotlib.use("Agg")  # non-interactive backend for headless rendering
+    import matplotlib.pyplot as plt
+    import matplotlib.dates as mdates
+    HAS_MATPLOTLIB = True
+except ImportError:
+    HAS_MATPLOTLIB = False
 
 
 SCRIPT_DIR = Path(__file__).resolve().parent
@@ -103,6 +121,114 @@ def _rao_to_tao(val: Any) -> Optional[float]:
     if f is None:
         return None
     return f / RAO_PER_TAO
+
+
+# ── ASCII Banner ─────────────────────────────────────────────────────────────
+
+def generate_ascii_header(netuid: int) -> Optional[str]:
+    """Generate an ASCII art banner like 'SN44' using pyfiglet."""
+    if not HAS_PYFIGLET:
+        print("  pyfiglet not installed — skipping ASCII banner. pip install pyfiglet", file=sys.stderr)
+        return None
+    try:
+        text = f"SN{netuid}"
+        # Try 'banner3' first (bold block style), fall back to 'big'
+        for font in ("banner3", "big", "standard"):
+            try:
+                banner = pyfiglet.figlet_format(text, font=font)
+                if banner.strip():
+                    return banner.rstrip("\n")
+            except pyfiglet.FontNotFound:
+                continue
+        return pyfiglet.figlet_format(text).rstrip("\n")
+    except Exception as e:
+        print(f"  ASCII banner failed: {e}", file=sys.stderr)
+        return None
+
+
+# ── Net Flow Chart ───────────────────────────────────────────────────────────
+
+def generate_netflow_chart(netuid: int, subnet_name: str = "") -> Optional[str]:
+    """Generate a 30-day net flow line chart as PNG, return file path or None."""
+    if not HAS_MATPLOTLIB:
+        print("  matplotlib not installed — skipping chart. pip install matplotlib", file=sys.stderr)
+        return None
+
+    try:
+        # Pull 30 days of pool history (has total_tao we can diff for daily flow)
+        print(f"  Pulling 30-day pool history for chart...", file=sys.stderr)
+        hist = _taostats_get(f"dtao/pool/history/v1?netuid={netuid}&interval=day&limit=31")
+        records = hist.get("data", [])
+        if not records or len(records) < 3:
+            print("  Not enough history data for chart.", file=sys.stderr)
+            return None
+
+        # Data comes newest-first — reverse to chronological order
+        records = list(reversed(records))
+
+        dates = []
+        flows = []
+        for i in range(1, len(records)):
+            ts = records[i].get("timestamp", "")
+            prev_tao = _rao_to_tao(records[i - 1].get("total_tao")) or 0
+            curr_tao = _rao_to_tao(records[i].get("total_tao")) or 0
+            daily_flow = curr_tao - prev_tao
+            try:
+                dt = datetime.fromisoformat(ts.replace("Z", "+00:00"))
+                dates.append(dt)
+                flows.append(daily_flow)
+            except (ValueError, AttributeError):
+                continue
+
+        if len(dates) < 3:
+            print("  Not enough valid data points for chart.", file=sys.stderr)
+            return None
+
+        # ── Style: dark background, TAO gold line ──
+        fig, ax = plt.subplots(figsize=(10, 4))
+        fig.patch.set_facecolor("#0d0d0d")
+        ax.set_facecolor("#0d0d0d")
+
+        # Gold line for net flow
+        ax.plot(dates, flows, color="#e8c14a", linewidth=1.8, zorder=3)
+
+        # Fill above/below zero
+        ax.fill_between(dates, flows, 0,
+                         where=[f >= 0 for f in flows], color="#e8c14a", alpha=0.15, interpolate=True)
+        ax.fill_between(dates, flows, 0,
+                         where=[f < 0 for f in flows], color="#ff4444", alpha=0.15, interpolate=True)
+
+        # Zero baseline
+        ax.axhline(y=0, color="#555555", linestyle="--", linewidth=0.8, zorder=2)
+
+        # Title and labels
+        title = f"SN{netuid}"
+        if subnet_name:
+            title += f" ({subnet_name})"
+        title += " — Daily Net TAO Flow (30d)"
+        ax.set_title(title, color="#e8c14a", fontsize=13, fontweight="bold", pad=12)
+        ax.set_ylabel("TAO", color="#aaaaaa", fontsize=10)
+
+        # Axis styling
+        ax.tick_params(colors="#888888", which="both")
+        ax.xaxis.set_major_formatter(mdates.DateFormatter("%b %d"))
+        ax.xaxis.set_major_locator(mdates.WeekdayLocator(interval=1))
+        fig.autofmt_xdate(rotation=30)
+        for spine in ax.spines.values():
+            spine.set_color("#333333")
+        ax.grid(axis="y", color="#222222", linewidth=0.5)
+
+        # Save
+        out_path = os.path.join(tempfile.gettempdir(), f"sn{netuid}_netflow.png")
+        fig.savefig(out_path, dpi=150, bbox_inches="tight", facecolor="#0d0d0d", edgecolor="none")
+        plt.close(fig)
+
+        print(f"  Chart saved: {out_path}", file=sys.stderr)
+        return out_path
+
+    except Exception as e:
+        print(f"  Chart generation failed: {e}", file=sys.stderr)
+        return None
 
 
 # ── API helpers ───────────────────────────────────────────────────────────────
@@ -518,6 +644,11 @@ def research_subnet(netuid: int, phase_only: Optional[str] = None, include_deep:
     """Run the full research pipeline for a single subnet."""
     output = {"netuid": netuid}
 
+    # ASCII banner — generated first so the bot can print it before anything else
+    ascii_header = generate_ascii_header(netuid)
+    if ascii_header:
+        output["ascii_header"] = ascii_header
+
     # Phase 1: Broad Scan
     print(f"\n--- Phase 1: Broad Scan for SN{netuid} ---", file=sys.stderr)
     chain_data = collect_chain_data(netuid)
@@ -552,6 +683,11 @@ def research_subnet(netuid: int, phase_only: Optional[str] = None, include_deep:
     if include_deep and signals:
         print(f"\n--- Phase 3: Deep Dive for SN{netuid} ---", file=sys.stderr)
         output["deep_dive"] = deep_dive(netuid, signals)
+
+    # Net flow chart — generated after all phases, non-blocking on failure
+    subnet_name = output.get("display", {}).get("subnet_name", "")
+    chart_path = generate_netflow_chart(netuid, subnet_name)
+    output["chart_path"] = chart_path  # null if generation failed
 
     return output
 
