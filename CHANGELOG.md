@@ -34,7 +34,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- **subnet-research** skill — Multi-phase subnet research combining live chain data (TaoStats), social sentiment (Desearch/X), and Bittensor domain knowledge into structured reports with signal analysis. Features: inactive subnet detection (price > 1 TAO), liquidity/slippage risk assessment, root_prop evaluation, net flow tracking, fear & greed analysis, dev activity checks, and social concentration detection. Supports comparative mode for side-by-side subnet analysis.
+- **subnet-research** skill — Multi-phase subnet research combining live chain data (TaoStats), social sentiment (Desearch/X), and Bittensor domain knowledge into structured reports with signal analysis. Features: inactive subnet detection (price > 1 TAO), liquidity risk assessment, root_prop evaluation, net flow tracking, fear & greed analysis, and social concentration detection. Supports comparative mode for side-by-side subnet analysis.
 
 ### Changed
 

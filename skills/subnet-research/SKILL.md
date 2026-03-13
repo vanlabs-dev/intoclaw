@@ -101,7 +101,7 @@ python3 skills/subnet-research/scripts/subnet_research.py --netuid <N>
 
 Adjust the path if the skill is installed elsewhere. The script pulls:
 - **Pool data** (TaoStats): price, root_prop, fear & greed, volume, liquidity, market cap
-- **Subnet info** (TaoStats): emissions, net flows (7d/30d), hyperparams, startup mode
+- **Subnet info** (TaoStats): emissions, net flows (7d/30d), hyperparams
 - **Validator yields** (TaoStats): top validators by 7d APY, participation rates
 - **X/Twitter sentiment** (Desearch): recent posts mentioning the subnet
 - **Web research** (Desearch): AI-synthesized overview from web + twitter + reddit
