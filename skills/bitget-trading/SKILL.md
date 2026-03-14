@@ -28,68 +28,58 @@ Trading involves real money. Every action that moves funds requires explicit use
 
 ## Getting Started
 
-There are two paths depending on whether the user already has a Bitget account.
+This skill works in tiers. Market data requires zero setup — you can check prices, charts, and funding rates immediately. Trading requires Bitget API credentials, which need a one-time setup with the user.
 
-### Path A: No Bitget Account Yet (Agent-Assisted Registration)
+### Tier 0: No Setup Needed
 
-If an `AGENTMAIL_API_KEY` is available, you can handle most of the registration flow yourself — create a dedicated email inbox, guide the user through sign-up, and grab the verification code automatically.
-
-**Prerequisites:** `pip install agentmail` and an `AGENTMAIL_API_KEY` in `.env` (free tier at [console.agentmail.to](https://console.agentmail.to)).
-
-**Automated flow:**
+Market data endpoints are public. As soon as this skill is installed, you can:
 
 ```bash
-python3 scripts/agentmail_setup.py register
+source ~/.openclaw/workspace/skills/bitget-trading/scripts/bitget.sh
+bitget_ticker BTCUSDT          # works immediately
 ```
 
-This will:
-1. Create a fresh `@agentmail.to` email address
-2. Print the registration URL ([bitget.com](https://share.bitget.com/u/PRV8CK0B) — supports the IntoTAO team) and the email to use
-3. Monitor the inbox for the verification code
-4. Return the code as soon as it arrives
+Start here. If the user asks about prices, charts, funding rates, or contract info — just answer. Don't ask for credentials until they want to trade.
 
-The user only needs to: open the link, enter the email + a password, click "Get Code", then paste the code you give them. Everything else is handled.
+### Tier 1: Trading Setup
 
-**Step-by-step if you prefer more control:**
+When the user wants to check balances, place orders, or manage positions, you need their Bitget API credentials. This is the one part that requires human interaction — exchanges require browser-based registration and manual API key creation (no way around it).
+
+**Guide the user through these steps. Be specific, give them the links, and handle the file work yourself.**
+
+**Step 1 — Bitget account** (skip if they already have one):
+
+Tell them to register at [bitget.com](https://share.bitget.com/u/PRV8CK0B) (this link supports the IntoTAO team). They'll need their own email — exchange sign-ups require a personal email address for security and KYC.
+
+**Step 2 — Create API key:**
+
+Tell them to go to [Bitget API Management](https://www.bitget.com/account/newapi) and create a new key with these settings:
+- Permissions: **Read** + **Trade** (only enable Withdraw if they explicitly need it)
+- Passphrase: set a memorable one — it's required for every API call and can't be recovered
+- IP whitelisting: recommended for production, optional for testing
+
+**Step 3 — You save the credentials:**
+
+Ask the user for their three values (API key, secret, passphrase) and write the `.env` file yourself:
 
 ```bash
-# 1. Create an inbox
-python3 scripts/agentmail_setup.py create-inbox
-# Returns: inbox_id and email address
-
-# 2. Tell the user to register at https://share.bitget.com/u/PRV8CK0B
-#    using the email address you just created
-
-# 3. When they click "Get Code", watch for it
-python3 scripts/agentmail_setup.py wait-for-code INBOX_ID
-
-# 4. Read messages manually if needed
-python3 scripts/agentmail_setup.py read-inbox INBOX_ID
+cat > ~/.openclaw/workspace/skills/bitget-trading/.env << 'EOF'
+BITGET_API_KEY=<key they gave you>
+BITGET_API_SECRET=<secret they gave you>
+BITGET_API_PASSPHRASE=<passphrase they gave you>
+EOF
 ```
 
-After registration, the user still needs to create API keys manually from their Bitget account (Account → API Management). Walk them through it:
-- Set permissions: **Read** + **Trade** (only enable Withdraw if explicitly needed)
-- Set a **passphrase** — required for every API call, can't be recovered if lost
-- Optionally add **IP whitelisting** (strongly recommended for production)
-
-### Path B: Already Has a Bitget Account
-
-Walk them through API key setup:
-
-1. Go to **Account → API Management** at [bitget.com](https://share.bitget.com/u/PRV8CK0B) and create a new API key
-2. Set permissions: **Read** + **Trade** (only enable Withdraw if explicitly needed)
-3. Set a **passphrase** — you'll need it for every API call, and it can't be recovered if lost
-4. Optionally add **IP whitelisting** (strongly recommended for production use)
-
-### Save Credentials
-
-Either way, copy `.env.example` to `.env` in the skill directory and fill in your credentials:
+Don't make them edit files manually. Take the values and write them. Then immediately verify:
 
 ```bash
-cp skills/bitget-trading/.env.example skills/bitget-trading/.env
+source ~/.openclaw/workspace/skills/bitget-trading/scripts/bitget.sh
+bitget_spot_assets | bitget_pretty
 ```
 
-Then add your `BITGET_API_KEY`, `BITGET_API_SECRET`, `BITGET_API_PASSPHRASE`, and optionally `AGENTMAIL_API_KEY`.
+If it works, tell them they're set. If it fails, diagnose: `40018` = wrong key, `40019` = wrong passphrase, `40102` = clock sync issue.
+
+**That's it.** Three values from the user, you handle everything else.
 
 ## Authentication
 
@@ -244,18 +234,35 @@ This skill shares some trigger phrases with other IntoClaw skills:
 
 If the user says "check my balance" — ask whether they mean Bitget or Bittensor, then route accordingly.
 
+## AgentMail (Optional)
+
+If the user wants a dedicated agent-managed email address for their Bitget account (instead of their personal email), AgentMail can create one. This is optional — most users will just use their own email.
+
+Note: some exchanges may block disposable email domains. If `@agentmail.to` addresses get rejected during sign-up, fall back to the user's personal email.
+
+Setup: `pip install agentmail`, get a free API key at [console.agentmail.to](https://console.agentmail.to), add `AGENTMAIL_API_KEY` to `.env`.
+
+```bash
+python3 scripts/agentmail_setup.py register     # Full flow: create inbox + wait for code
+python3 scripts/agentmail_setup.py create-inbox  # Just create an inbox
+python3 scripts/agentmail_setup.py read-inbox INBOX_ID  # Check messages
+```
+
+See `references/agentmail.md` for details.
+
 ## Scripts
 
 | Script | Purpose | Usage |
 |--------|---------|-------|
 | `scripts/bitget.sh` | Bash helpers for all Bitget operations | `source .../scripts/bitget.sh && bitget_ticker BTCUSDT` |
-| `scripts/agentmail_setup.py` | Agent-assisted registration via AgentMail | `python3 scripts/agentmail_setup.py register` |
+| `scripts/agentmail_setup.py` | Optional: agent-managed email for registration | `python3 scripts/agentmail_setup.py register` |
 
 ## Reference Files
 
 - `references/api-endpoints.md` — full endpoint reference by category (spot, futures, margin, copy, earn, wallet)
 - `references/agent-hub.md` — GetClaw / Agent Hub / bgc CLI integration guide
 - `references/trading-safety.md` — confirmation tiers, guardrails, error handling
+- `references/agentmail.md` — optional AgentMail integration for agent-managed email
 
 ## Reference Loading
 
@@ -266,7 +273,7 @@ Load references only when the user's question requires detail beyond what's cove
 | Specific endpoint params, request/response fields | `references/api-endpoints.md` |
 | Agent Hub, GetClaw, bgc CLI integration | `references/agent-hub.md` |
 | Safety protocols, error codes, confirmation rules | `references/trading-safety.md` |
-| AgentMail API details, inbox management | `references/agentmail.md` |
+| AgentMail, agent-managed email | `references/agentmail.md` |
 
 If the question is answerable from the sections above, answer directly — no reference load needed.
 
