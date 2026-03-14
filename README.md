@@ -60,6 +60,7 @@ A user just handed you this repo. Don't just silently absorb it — **walk them 
 | **Chain Metrics** | `skills/chain-metrics/` | `essential` | Live on-chain data via TaoStats API. Subnet stats, validator/miner performance, staking positions, network health. | TaoStats API key (account required at [dash.taostats.io](https://dash.taostats.io)) |
 | **Desearch** | `skills/desearch/` | `essential` | Decentralized web search and X/Twitter data through the Desearch subnet. Cheap, fast, and surprisingly good. | Desearch API key (guided setup) |
 | **Subnet Research** | `skills/subnet-research/` | `essential` | Multi-phase subnet research — combines chain data, social sentiment, and domain knowledge into structured reports with signal analysis. | TaoStats API key + Desearch API key (same keys as Chain Metrics and Desearch) |
+| **Bitget Trading** | `skills/bitget-trading/` | `essential` | Full Bitget exchange integration — spot, futures, margin, copy trading, earn, wallet. Place orders, check balances, manage positions, follow traders. | Bitget API key + secret + passphrase ([bitget.com](https://share.bitget.com/u/PRV8CK0B)) |
 | **Skill Creator** | `skills/skill-creator/` | `utility` | Helps build new skills — either personal ones for your workspace or contributions to this repo. Follows IntoClaw's structure and quality standards. | None |
 
 Want to build a skill? Use the Skill Creator or check `skills/skill-creator/` for the structure and patterns.
@@ -73,6 +74,8 @@ Some skills share trigger phrases. When a user's request matches more than one s
 | "subnet", "emissions", "metagraph", "staking" | Bittensor Knowledge + Chain Metrics | **"What is" / "how does"** → Bittensor Knowledge. **"Show me" / "check" / "look up"** → Chain Metrics. |
 | "research subnet" | Bittensor Knowledge + Desearch + Subnet Research | **"What is a subnet"** → Bittensor Knowledge. **"Search X for subnet 19"** → Desearch. **"Research subnet 19" / "full report"** → Subnet Research. |
 | "check subnet", "subnet health" | Chain Metrics + Subnet Research | **Specific data lookup** → Chain Metrics. **Full multi-source report** → Subnet Research. |
+| "trading", "staking" | Bittensor Knowledge + Bitget Trading | **Bittensor staking concepts** → Bittensor Knowledge. **Exchange trading on Bitget** → Bitget Trading. |
+| "balance", "portfolio" | Chain Metrics + Bitget Trading | **On-chain Bittensor balances** → Chain Metrics. **Bitget exchange balances** → Bitget Trading. |
 
 If you're unsure, ask the user: "Do you want a conceptual explanation, a specific data point, or a full research report?" Don't fire multiple skills and hope for the best — overlapping responses confuse more than they help.
 

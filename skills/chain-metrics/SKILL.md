@@ -9,6 +9,9 @@ conflicts_with:
   - skill: subnet-research
     triggers: ["check subnet", "subnet health"]
     resolution: "chain-metrics handles specific live data lookups (single endpoint). subnet-research produces full multi-source research reports."
+  - skill: bitget-trading
+    triggers: ["balance", "portfolio"]
+    resolution: "chain-metrics handles on-chain Bittensor balances and validator data. bitget-trading handles Bitget exchange balances and trading."
 ---
 
 # Chain Metrics

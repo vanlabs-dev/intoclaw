@@ -81,6 +81,26 @@
       ]
     },
     {
+      "name": "bitget-trading",
+      "version": "1.0.0",
+      "path": "skills/bitget-trading",
+      "status": "essential",
+      "description": "Full Bitget exchange integration — spot, futures, margin, copy trading, earn, wallet operations, and market data via Bitget REST API",
+      "requires_env": ["BITGET_API_KEY", "BITGET_API_SECRET", "BITGET_API_PASSPHRASE", "AGENTMAIL_API_KEY"],
+      "conflicts_with": [
+        {
+          "skill": "bittensor-knowledge",
+          "triggers": ["trading", "staking"],
+          "resolution": "bitget-trading handles centralized exchange trading on Bitget. bittensor-knowledge handles Bittensor protocol concepts."
+        },
+        {
+          "skill": "chain-metrics",
+          "triggers": ["balance", "portfolio"],
+          "resolution": "bitget-trading handles Bitget exchange balances. chain-metrics handles on-chain Bittensor balances."
+        }
+      ]
+    },
+    {
       "name": "skill-creator",
       "version": "1.0.0",
       "path": "skills/skill-creator",

@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **bitget-trading** skill — Full Bitget exchange integration covering spot trading, futures trading, margin, copy trading, earn/savings, wallet operations, and market data. Includes bash helpers with HMAC-SHA256 signature generation, comprehensive endpoint reference, Agent Hub/GetClaw documentation, and trading safety framework with tiered confirmation patterns. Features AgentMail-powered registration flow — agent creates its own email inbox and catches verification codes automatically, minimizing human interaction during account setup.
 - **subnet-research**: Pre-formatted `telegram` HTML message in JSON output — ready-to-send string with emoji anchors, domain escaping, and HTML parse_mode formatting
 - **Development workflow**: `dev` branch, PR template, CONTRIBUTING.md, GitHub Actions CI (`validate-skill.yml`)
 

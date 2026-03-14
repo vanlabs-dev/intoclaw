@@ -12,6 +12,9 @@ conflicts_with:
   - skill: subnet-research
     triggers: ["research subnet", "subnet analysis"]
     resolution: "subnet-research produces structured multi-source research reports. bittensor-knowledge answers conceptual questions about how subnets work."
+  - skill: bitget-trading
+    triggers: ["trading", "staking"]
+    resolution: "bitget-trading handles centralized exchange trading on Bitget. bittensor-knowledge handles Bittensor protocol concepts like staking TAO on subnets."
 ---
 
 # Bittensor Knowledge Base
