@@ -301,12 +301,6 @@ bitget_set_tpsl() {
   local sl_price="${4:-}"
   local margin_coin="${5:-USDT}"
 
-  local body="{\"symbol\":\"${symbol}\",\"productType\":\"${product}\",\"marginCoin\":\"${margin_coin}\",\"planType\":\"pos_profit\""
-  if [[ -n "$tp_price" ]]; then
-    body+=",\"triggerPrice\":\"${tp_price}\",\"triggerType\":\"mark_price\""
-  fi
-  body+="}"
-
   # TP and SL are separate API calls
   if [[ -n "$tp_price" ]]; then
     bitget_private POST "/api/v2/mix/order/place-tpsl-order" \
