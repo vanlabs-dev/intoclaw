@@ -1,6 +1,6 @@
 # IntoClaw — Developer Context
 
-Bittensor skill pack for OpenClaw bots, built by IntoTAO. This repo contains skills that give AI agents deep Bittensor knowledge, live chain data access, and decentralized web search.
+Bittensor skill pack for OpenClaw bots, built by IntoTAO. This repo contains skills that give AI agents deep Bittensor knowledge, live chain data access, decentralized web search, and centralized exchange trading via Bitget.
 
 **Repo**: `https://github.com/vanlabs-dev/intoclaw.git`
 **License**: MIT
@@ -35,6 +35,11 @@ intoclaw/
     │   ├── SKILL.md
     │   ├── scripts/           # subnet_research.py — data collection + signal analysis
     │   └── references/        # Research methodology, signal thresholds
+    ├── bitget-trading/        # Essential — Full Bitget exchange integration (spot, futures, margin, copy, earn)
+    │   ├── SKILL.md
+    │   ├── .env.example
+    │   ├── scripts/           # bitget.sh — bash helpers with HMAC-SHA256 auth
+    │   └── references/        # API endpoints, Agent Hub, trading safety
     └── skill-creator/         # Utility — Meta-skill for building new skills
         ├── SKILL.md
         └── references/        # Design patterns doc
@@ -95,6 +100,14 @@ Skills can overlap in trigger phrases. The `conflicts_with` frontmatter handles 
 |---------|-------------------|----------|
 | "research subnet" | Foundational knowledge | Real-time web/X search |
 
+| Overlap | bittensor-knowledge | bitget-trading |
+|---------|-------------------|----------------|
+| "trading", "staking" | Bittensor protocol concepts | Centralized exchange trading on Bitget |
+
+| Overlap | chain-metrics | bitget-trading |
+|---------|--------------|----------------|
+| "balance", "portfolio" | On-chain Bittensor balances | Bitget exchange balances |
+
 When adding a new skill, check existing skill descriptions for trigger overlap and add `conflicts_with` entries in both directions.
 
 ---
@@ -107,6 +120,9 @@ Skills that call external APIs load keys from `.env` files in the skill director
 |----------|-------|--------|
 | `TAOSTATS_API_KEY` | chain-metrics, subnet-research | [dash.taostats.io](https://dash.taostats.io) |
 | `DESEARCH_API_KEY` | desearch, subnet-research | [desearch.ai](https://desearch.ai) |
+| `BITGET_API_KEY` | bitget-trading | [bitget.com/account/newapi](https://www.bitget.com/account/newapi) |
+| `BITGET_API_SECRET` | bitget-trading | Same as above — generated together |
+| `BITGET_API_PASSPHRASE` | bitget-trading | User-set during API key creation |
 
 **Pattern**: Copy `.env.example` to `.env` in the skill directory, fill in the key values. Scripts look for `.env` in the skill directory first, then the workspace root, then fall back to shell environment variables. This approach works reliably in subshells and agent contexts where shell profile exports may not persist.
 
@@ -214,6 +230,12 @@ Scripts load API keys from `.env` files (skill directory first, then workspace r
 ### TaoStats auth header format
 `Authorization: <key>` — no `Bearer` prefix. Same for Desearch.
 
+### Bitget auth is different from TaoStats/Desearch
+Bitget uses custom `ACCESS-*` headers (ACCESS-KEY, ACCESS-SIGN, ACCESS-TIMESTAMP, ACCESS-PASSPHRASE) with HMAC-SHA256 signatures — not Bearer or Authorization headers. The bash helpers in `bitget.sh` handle this automatically. Three credentials required: API key, secret, and passphrase.
+
+### Bitget symbol format quirks
+V2 endpoints use plain symbols (`BTCUSDT`) with a `productType` param. Some older/internal endpoints expect suffixed symbols like `BTCUSDT_UMCBL`. The bash helpers use the V2 format consistently.
+
 ### TaoStats rate limits
 ~5 req/min on free tier. Use `sleep 0.3` between calls in loops. Check `Retry-After` header on 429s.
 
@@ -258,6 +280,12 @@ These files are written *for the bot to read* when a user first hands it the rep
 |--------|----------|---------|
 | `subnet_research.py` | Python | Multi-phase data collection (TaoStats + Desearch), signal analysis, JSON output |
 
+### Bitget Trading (`skills/bitget-trading/scripts/`)
+
+| Script | Language | Purpose |
+|--------|----------|---------|
+| `bitget.sh` | Bash | Source for shell helpers — market data, spot/futures orders, positions, TP/SL, copy trading, wallet |
+
 All scripts load API keys from `.env` in the skill directory, falling back to the workspace root, then the shell environment. No hardcoded keys.
 
 ---
@@ -278,6 +306,11 @@ curl -s "https://api.desearch.ai/web?query=bittensor&start=0" \
 # Subnet Research (needs both keys)
 python3 ~/.openclaw/workspace/skills/subnet-research/scripts/subnet_research.py --netuid 1 --phase broad 2>/dev/null \
   | python3 -c "import sys,json; d=json.load(sys.stdin); p=d['primary']; print('subnet-research OK:', 'pool' in p and 'social' in p)"
+
+# Bitget Trading (no deps for market data)
+source ~/.openclaw/workspace/skills/bitget-trading/scripts/bitget.sh
+bitget_ticker BTCUSDT | python3 -c "import sys,json; d=json.load(sys.stdin); print('bitget-trading OK:', d['data'][0]['lastPr'])" 2>/dev/null \
+  || echo "bitget-trading: curl or API issue"
 
 # Bittensor Knowledge (no deps — ask the bot)
 # "What is the exact EMA smoothing factor used in the flow-based emissions model?"
