@@ -295,21 +295,64 @@ bitget_set_tpsl() {
   # Place a TP/SL order on a futures position
   # Usage: bitget_set_tpsl BTCUSDT USDT-FUTURES 52000 48000
   # Either TP or SL can be empty string "" to set only one side
+  # Returns JSON with both results so the caller can report success/failure for each
   local symbol="${1:?Usage: bitget_set_tpsl SYMBOL PRODUCT_TYPE TP_PRICE SL_PRICE}"
   local product="${2:-USDT-FUTURES}"
   local tp_price="${3:-}"
   local sl_price="${4:-}"
   local margin_coin="${5:-USDT}"
 
-  # TP and SL are separate API calls
+  local tp_result="null"
+  local sl_result="null"
+
+  # TP and SL are separate API calls — capture both results
   if [[ -n "$tp_price" ]]; then
-    bitget_private POST "/api/v2/mix/order/place-tpsl-order" \
-      "{\"symbol\":\"${symbol}\",\"productType\":\"${product}\",\"marginCoin\":\"${margin_coin}\",\"planType\":\"profit_plan\",\"triggerPrice\":\"${tp_price}\",\"triggerType\":\"mark_price\"}"
+    tp_result=$(bitget_private POST "/api/v2/mix/order/place-tpsl-order" \
+      "{\"symbol\":\"${symbol}\",\"productType\":\"${product}\",\"marginCoin\":\"${margin_coin}\",\"planType\":\"profit_plan\",\"triggerPrice\":\"${tp_price}\",\"triggerType\":\"mark_price\"}")
   fi
   if [[ -n "$sl_price" ]]; then
-    bitget_private POST "/api/v2/mix/order/place-tpsl-order" \
-      "{\"symbol\":\"${symbol}\",\"productType\":\"${product}\",\"marginCoin\":\"${margin_coin}\",\"planType\":\"loss_plan\",\"triggerPrice\":\"${sl_price}\",\"triggerType\":\"mark_price\"}"
+    sl_result=$(bitget_private POST "/api/v2/mix/order/place-tpsl-order" \
+      "{\"symbol\":\"${symbol}\",\"productType\":\"${product}\",\"marginCoin\":\"${margin_coin}\",\"planType\":\"loss_plan\",\"triggerPrice\":\"${sl_price}\",\"triggerType\":\"mark_price\"}")
   fi
+
+  # Return combined result so the bot can narrate both outcomes
+  echo "{\"take_profit\":{\"price\":\"${tp_price:-not_set}\",\"result\":${tp_result}},\"stop_loss\":{\"price\":\"${sl_price:-not_set}\",\"result\":${sl_result}}}"
+}
+
+bitget_position_summary() {
+  # Convenience: extract key fields from futures positions into a readable summary
+  # Usage: bitget_position_summary [PRODUCT_TYPE]
+  # Returns: symbol, side, size, entry price, unrealised PnL, leverage, margin mode
+  local product="${1:-USDT-FUTURES}"
+  bitget_futures_positions "$product" | python3 -c "
+import sys, json
+try:
+    data = json.load(sys.stdin)
+    positions = data.get('data', [])
+    if not positions:
+        print(json.dumps({'positions': [], 'count': 0}))
+        sys.exit(0)
+    summary = []
+    for p in positions:
+        size = p.get('total', p.get('available', '0'))
+        if float(size) == 0:
+            continue
+        summary.append({
+            'symbol': p.get('symbol', ''),
+            'side': p.get('holdSide', ''),
+            'size': size,
+            'entry_price': p.get('openPriceAvg', ''),
+            'mark_price': p.get('markPrice', ''),
+            'unrealised_pnl': p.get('unrealizedPL', ''),
+            'leverage': p.get('leverage', ''),
+            'margin_mode': p.get('marginMode', ''),
+            'liquidation_price': p.get('liquidationPrice', ''),
+            'margin': p.get('margin', ''),
+        })
+    print(json.dumps({'positions': summary, 'count': len(summary)}, indent=2))
+except Exception as e:
+    print(json.dumps({'error': str(e)}))
+" 2>/dev/null || echo '{"error": "python3 required for position summary"}'
 }
 
 bitget_close_all() {

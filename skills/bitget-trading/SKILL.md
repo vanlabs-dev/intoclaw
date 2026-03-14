@@ -26,20 +26,26 @@ You are the user's Bitget trading assistant. You can check market data, manage a
 
 Trading involves real money. Every action that moves funds requires explicit user confirmation. Read-only operations (prices, balances, history) can proceed without confirmation. See the safety tiers in `references/trading-safety.md`.
 
-## Getting Started
+## First Thing: Prove It Works
 
-This skill works in tiers. Market data requires zero setup — you can check prices, charts, and funding rates immediately. Trading requires Bitget API credentials, which need a one-time setup with the user.
-
-### Tier 0: No Setup Needed
-
-Market data endpoints are public. As soon as this skill is installed, you can:
+Before anything else — before setup, before credentials, before explaining what the skill does — show the user a live price. This requires zero configuration:
 
 ```bash
 source ~/.openclaw/workspace/skills/bitget-trading/scripts/bitget.sh
-bitget_ticker BTCUSDT          # works immediately
+bitget_ticker BTCUSDT | bitget_pretty
 ```
 
-Start here. If the user asks about prices, charts, funding rates, or contract info — just answer. Don't ask for credentials until they want to trade.
+That's it. If it returns a ticker with a price, the skill is working. Market data is public — no API keys needed. This is your smoke test: run it immediately when the skill is installed.
+
+## Getting Started
+
+This skill works in tiers. Market data works out of the box (you just proved it). Trading requires Bitget API credentials, which need a one-time setup with the user.
+
+### Why Setup Requires Human Interaction
+
+Centralized exchanges are regulated financial platforms. They require identity verification (KYC), personal email registration, and browser-based account creation. There is no API for creating accounts — this is an industry-wide regulatory requirement, not a Bitget limitation. Automated or disposable email services (like AgentMail) are typically blocked by exchanges to prevent fraud, and accounts created with them risk being locked or having funds frozen during KYC reviews.
+
+The setup below is designed to get through the mandatory human steps as fast as possible, with the bot handling everything it can.
 
 ### Tier 1: Trading Setup
 
@@ -146,13 +152,15 @@ bitget_futures_order BTCUSDT sell open market 0.01          # Open short market
 bitget_futures_order BTCUSDT sell close market 0.01         # Close long
 
 # Positions & settings
-bitget_futures_positions                  # All open positions
+bitget_futures_positions                  # All open positions (raw JSON)
+bitget_position_summary                   # Clean summary: symbol, side, size, entry, PnL, leverage
 bitget_set_leverage BTCUSDT 10            # Set 10x leverage
 bitget_set_margin_mode BTCUSDT crossed    # Set cross margin (or: fixed)
 bitget_futures_open_orders                # Open futures orders
 bitget_close_all                          # Flash close all positions
 
-# TP/SL (either price can be "" to skip)
+# TP/SL — returns combined result so you can report both outcomes
+# Either price can be "" to skip that side
 bitget_set_tpsl BTCUSDT USDT-FUTURES 52000 48000   # Set both TP and SL
 bitget_set_tpsl BTCUSDT USDT-FUTURES 52000 ""      # TP only
 bitget_set_tpsl BTCUSDT USDT-FUTURES "" 48000       # SL only
@@ -241,35 +249,27 @@ This skill shares some trigger phrases with other IntoClaw skills:
 
 If the user says "check my balance" — ask whether they mean Bitget or Bittensor, then route accordingly.
 
-## AgentMail (Optional)
+## Symbol Format Quirks
 
-If the user wants a dedicated agent-managed email address for their Bitget account (instead of their personal email), AgentMail can create one. This is optional — most users will just use their own email.
+Bitget V2 has inconsistent symbol formatting across endpoint groups. Be aware:
 
-Note: some exchanges may block disposable email domains. If `@agentmail.to` addresses get rejected during sign-up, fall back to the user's personal email.
+- **Spot endpoints** use plain symbols: `BTCUSDT`
+- **Futures V2 endpoints** also use plain symbols: `BTCUSDT` (with `productType` param)
+- **Some older/internal endpoints** may expect suffixed symbols like `BTCUSDT_UMCBL`
 
-Setup: `pip install agentmail`, get a free API key at [console.agentmail.to](https://console.agentmail.to), add `AGENTMAIL_API_KEY` to `.env`.
-
-```bash
-python3 scripts/agentmail_setup.py register     # Full flow: create inbox + wait for code
-python3 scripts/agentmail_setup.py create-inbox  # Just create an inbox
-python3 scripts/agentmail_setup.py read-inbox INBOX_ID  # Check messages
-```
-
-See `references/agentmail.md` for details.
+The bash helpers in this skill use the V2 format (`BTCUSDT` + `productType`), which is consistent across spot and futures. If you hit a "symbol not found" error, check whether the endpoint expects the suffixed format and adjust accordingly.
 
 ## Scripts
 
 | Script | Purpose | Usage |
 |--------|---------|-------|
 | `scripts/bitget.sh` | Bash helpers for all Bitget operations | `source .../scripts/bitget.sh && bitget_ticker BTCUSDT` |
-| `scripts/agentmail_setup.py` | Optional: agent-managed email for registration | `python3 scripts/agentmail_setup.py register` |
 
 ## Reference Files
 
 - `references/api-endpoints.md` — full endpoint reference by category (spot, futures, margin, copy, earn, wallet)
 - `references/agent-hub.md` — GetClaw / Agent Hub / bgc CLI integration guide
 - `references/trading-safety.md` — confirmation tiers, guardrails, error handling
-- `references/agentmail.md` — optional AgentMail integration for agent-managed email
 
 ## Reference Loading
 
@@ -280,7 +280,6 @@ Load references only when the user's question requires detail beyond what's cove
 | Specific endpoint params, request/response fields | `references/api-endpoints.md` |
 | Agent Hub, GetClaw, bgc CLI integration | `references/agent-hub.md` |
 | Safety protocols, error codes, confirmation rules | `references/trading-safety.md` |
-| AgentMail, agent-managed email | `references/agentmail.md` |
 
 If the question is answerable from the sections above, answer directly — no reference load needed.
 
