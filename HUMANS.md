@@ -45,7 +45,7 @@ Point your bot at this repo and it walks you through what's available, helps you
 
 ## What's in the box
 
-IntoClaw ships with skills covering Bittensor domain knowledge, live chain data, and decentralized web search — plus a utility skill for building your own. The full skill registry (descriptions, prerequisites, status) lives in [README.md](README.md), which is also what your bot reads on first contact. Check there for the current list and details.
+IntoClaw ships with skills covering Bittensor domain knowledge, live chain data, decentralized web search, subnet research, and centralized exchange trading via Bitget — plus a utility skill for building your own. The full skill registry (descriptions, prerequisites, status) lives in [README.md](README.md), which is also what your bot reads on first contact. Check there for the current list and details.
 
 ## Contributing
 

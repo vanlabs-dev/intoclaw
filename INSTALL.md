@@ -122,6 +122,7 @@ The recommended install order for IntoClaw's core skills:
 2. **Chain Metrics** — needs TaoStats API key, builds on the knowledge base
 3. **Desearch** — needs Desearch API key, adds web + X/Twitter search
 4. **Subnet Research** — uses TaoStats and Desearch API keys (if you haven't already set up API keys for Chain Metrics and Desearch, you'll need to do that first — but if those keys are already in place, this skill picks them up automatically with no extra setup)
+5. **Bitget Trading** — needs Bitget API key, secret, and passphrase. Market data works immediately with no credentials; trading setup requires the user to create a Bitget account and API keys through the browser (exchange KYC/security requirements — no way around it), then provide 3 values to the bot
 
 ---
 
