@@ -36,8 +36,9 @@ _bitget_sign() {
 
 _bitget_timestamp() {
   # Milliseconds since epoch
-  python -c "import time; print(int(time.time() * 1000))" 2>/dev/null \
-    || date +%s000
+  python3 -c "import time; print(int(time.time() * 1000))" 2>/dev/null \
+    || python -c "import time; print(int(time.time() * 1000))" 2>/dev/null \
+    || echo "$(date +%s)000"
 }
 
 # ── Core request functions ──────────────────────────────────
@@ -168,15 +169,17 @@ bitget_fee_rate() {
 # ── Spot Trading (auth required) ────────────────────────────
 bitget_spot_order() {
   # Place a spot order
-  # Usage: bitget_spot_order BTCUSDT buy limit 0.001 50000
+  # Usage: bitget_spot_order BTCUSDT buy limit 0.001 50000 [GTC]
   # Usage: bitget_spot_order BTCUSDT buy market 0.001
-  local symbol="${1:?Usage: bitget_spot_order SYMBOL SIDE TYPE SIZE [PRICE]}"
+  # Force: GTC (default), IOC, FOK, POST_ONLY
+  local symbol="${1:?Usage: bitget_spot_order SYMBOL SIDE TYPE SIZE [PRICE] [FORCE]}"
   local side="${2:?Side required: buy or sell}"
   local order_type="${3:?Type required: limit or market}"
   local size="${4:?Size required}"
   local price="${5:-}"
+  local force="${6:-GTC}"
 
-  local body="{\"symbol\":\"${symbol}\",\"side\":\"${side}\",\"orderType\":\"${order_type}\",\"size\":\"${size}\""
+  local body="{\"symbol\":\"${symbol}\",\"side\":\"${side}\",\"orderType\":\"${order_type}\",\"size\":\"${size}\",\"force\":\"${force}\""
   if [[ -n "$price" ]]; then
     body+=",\"price\":\"${price}\""
   fi
@@ -207,6 +210,16 @@ bitget_spot_history() {
   # Get spot order history
   local symbol="${1:-}"
   local path="/api/v2/spot/trade/history-orders"
+  if [[ -n "$symbol" ]]; then
+    path+="?symbol=${symbol}"
+  fi
+  bitget_private GET "$path"
+}
+
+bitget_spot_fills() {
+  # Get spot fill/trade history (different from order history — shows actual executions)
+  local symbol="${1:-}"
+  local path="/api/v2/spot/trade/fills"
   if [[ -n "$symbol" ]]; then
     path+="?symbol=${symbol}"
   fi
@@ -258,13 +271,51 @@ bitget_futures_open_orders() {
 
 bitget_set_leverage() {
   # Set futures leverage
-  # Usage: bitget_set_leverage BTCUSDT 10 [crossed|fixed]
-  local symbol="${1:?Usage: bitget_set_leverage SYMBOL LEVERAGE [MARGIN_MODE]}"
+  # Usage: bitget_set_leverage BTCUSDT 10 [USDT] [USDT-FUTURES]
+  local symbol="${1:?Usage: bitget_set_leverage SYMBOL LEVERAGE [MARGIN_COIN] [PRODUCT_TYPE]}"
   local leverage="${2:?Leverage required}"
   local margin_coin="${3:-USDT}"
   local product="${4:-USDT-FUTURES}"
   bitget_private POST "/api/v2/mix/account/set-leverage" \
     "{\"symbol\":\"${symbol}\",\"productType\":\"${product}\",\"marginCoin\":\"${margin_coin}\",\"leverage\":\"${leverage}\"}"
+}
+
+bitget_set_margin_mode() {
+  # Set margin mode (crossed or fixed/isolated)
+  # Usage: bitget_set_margin_mode BTCUSDT crossed [USDT] [USDT-FUTURES]
+  local symbol="${1:?Usage: bitget_set_margin_mode SYMBOL MODE [MARGIN_COIN] [PRODUCT_TYPE]}"
+  local margin_mode="${2:?Mode required: crossed or fixed}"
+  local margin_coin="${3:-USDT}"
+  local product="${4:-USDT-FUTURES}"
+  bitget_private POST "/api/v2/mix/account/set-margin-mode" \
+    "{\"symbol\":\"${symbol}\",\"productType\":\"${product}\",\"marginCoin\":\"${margin_coin}\",\"marginMode\":\"${margin_mode}\"}"
+}
+
+bitget_set_tpsl() {
+  # Place a TP/SL order on a futures position
+  # Usage: bitget_set_tpsl BTCUSDT USDT-FUTURES 52000 48000
+  # Either TP or SL can be empty string "" to set only one side
+  local symbol="${1:?Usage: bitget_set_tpsl SYMBOL PRODUCT_TYPE TP_PRICE SL_PRICE}"
+  local product="${2:-USDT-FUTURES}"
+  local tp_price="${3:-}"
+  local sl_price="${4:-}"
+  local margin_coin="${5:-USDT}"
+
+  local body="{\"symbol\":\"${symbol}\",\"productType\":\"${product}\",\"marginCoin\":\"${margin_coin}\",\"planType\":\"pos_profit\""
+  if [[ -n "$tp_price" ]]; then
+    body+=",\"triggerPrice\":\"${tp_price}\",\"triggerType\":\"mark_price\""
+  fi
+  body+="}"
+
+  # TP and SL are separate API calls
+  if [[ -n "$tp_price" ]]; then
+    bitget_private POST "/api/v2/mix/order/place-tpsl-order" \
+      "{\"symbol\":\"${symbol}\",\"productType\":\"${product}\",\"marginCoin\":\"${margin_coin}\",\"planType\":\"profit_plan\",\"triggerPrice\":\"${tp_price}\",\"triggerType\":\"mark_price\"}"
+  fi
+  if [[ -n "$sl_price" ]]; then
+    bitget_private POST "/api/v2/mix/order/place-tpsl-order" \
+      "{\"symbol\":\"${symbol}\",\"productType\":\"${product}\",\"marginCoin\":\"${margin_coin}\",\"planType\":\"loss_plan\",\"triggerPrice\":\"${sl_price}\",\"triggerType\":\"mark_price\"}"
+  fi
 }
 
 bitget_close_all() {
@@ -331,5 +382,7 @@ bitget_coin_info() {
 bitget_pretty() {
   # Pipe any bitget_* output through this for readable JSON
   # Usage: bitget_ticker BTCUSDT | bitget_pretty
-  python -m json.tool 2>/dev/null || cat
+  python3 -m json.tool 2>/dev/null \
+    || python -m json.tool 2>/dev/null \
+    || cat
 }

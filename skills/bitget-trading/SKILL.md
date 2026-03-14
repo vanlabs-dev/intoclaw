@@ -125,15 +125,16 @@ bitget_fee_rate BTCUSDT spot             # Trading fee rate
 ### Spot Trading
 
 ```bash
-# Place orders
-bitget_spot_order BTCUSDT buy limit 0.001 50000    # Limit buy
+# Place orders (last arg is force: GTC, IOC, FOK, POST_ONLY — defaults to GTC)
+bitget_spot_order BTCUSDT buy limit 0.001 50000    # Limit buy (GTC)
 bitget_spot_order BTCUSDT buy market 0.001          # Market buy
-bitget_spot_order BTCUSDT sell limit 0.001 60000    # Limit sell
+bitget_spot_order BTCUSDT sell limit 0.001 60000 POST_ONLY  # Post-only sell
 
 # Manage orders
 bitget_spot_open_orders BTCUSDT          # Check open orders
 bitget_spot_cancel BTCUSDT ORDER_ID      # Cancel an order
 bitget_spot_history BTCUSDT              # Order history
+bitget_spot_fills BTCUSDT                # Fill/trade history (actual executions)
 ```
 
 ### Futures Trading
@@ -147,8 +148,14 @@ bitget_futures_order BTCUSDT sell close market 0.01         # Close long
 # Positions & settings
 bitget_futures_positions                  # All open positions
 bitget_set_leverage BTCUSDT 10            # Set 10x leverage
+bitget_set_margin_mode BTCUSDT crossed    # Set cross margin (or: fixed)
 bitget_futures_open_orders                # Open futures orders
 bitget_close_all                          # Flash close all positions
+
+# TP/SL (either price can be "" to skip)
+bitget_set_tpsl BTCUSDT USDT-FUTURES 52000 48000   # Set both TP and SL
+bitget_set_tpsl BTCUSDT USDT-FUTURES 52000 ""      # TP only
+bitget_set_tpsl BTCUSDT USDT-FUTURES "" 48000       # SL only
 ```
 
 Futures orders have a `tradeSide` parameter: `open` to enter a position, `close` to exit.
