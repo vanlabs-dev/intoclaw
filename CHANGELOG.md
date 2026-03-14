@@ -5,6 +5,42 @@ All notable changes to IntoClaw will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Added
+
+- **subnet-research**: Pre-formatted `telegram` HTML message in JSON output — ready-to-send string with emoji anchors, domain escaping, and HTML parse_mode formatting
+- **Development workflow**: `dev` branch, PR template, CONTRIBUTING.md, GitHub Actions CI (`validate-skill.yml`)
+
+### Fixed
+
+- **subnet-research**: Removed TaoStats slippage simulation — endpoint returns wildly inaccurate values vs actual on-chain swaps. Liquidity risk now assessed via pool metrics (liquidity/market_cap ratio + volume)
+- **subnet-research**: Fixed emission display — was using raw on-chain `emission` int, now uses `projected_emission` fraction
+- **subnet-research**: Fixed APY display — `seven_day_apy` returns a fraction, now correctly multiplied by 100 for percentage
+- **subnet-research**: Removed validator concentration signal — ecosystem-wide norm, flagging it on every subnet is noise
+
+### Changed
+
+- **subnet-research**: Telegram output uses HTML format (`<b>bold</b>`) instead of Markdown — more reliable across Telegram clients
+- **subnet-research**: Domain names in reports auto-escaped (tao(dot)com) to prevent link preview embeds
+- **INSTALL.md**: Bots now check existing .env files before prompting for keys
+
+### Removed
+
+- **subnet-research**: Image generation removed (header card, charts) — not compatible with Telegram bot flow
+- **subnet-research**: pyfiglet, Pillow, matplotlib dependencies removed — only `requests` required
+
+## [1.1.0] - 2026-03-13
+
+### Added
+
+- **subnet-research** skill — Multi-phase subnet research combining live chain data (TaoStats), social sentiment (Desearch/X), and Bittensor domain knowledge into structured reports with signal analysis. Features: inactive subnet detection (price > 1 TAO), liquidity risk assessment, root_prop evaluation, net flow tracking, fear & greed analysis, and social concentration detection. Supports comparative mode for side-by-side subnet analysis.
+
+### Changed
+
+- Updated conflict declarations in bittensor-knowledge, chain-metrics, and desearch skills to include subnet-research overlaps
+- Updated README.md skill registry and overlap tables
+
 ## [1.0.0] - 2026-03-12
 
 ### Added

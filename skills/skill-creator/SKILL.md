@@ -209,6 +209,22 @@ Before calling a skill done:
 
 ---
 
+## Testing Workflow (IntoClaw repo skills)
+
+Before PRing a new skill, test it with a real agent on the `dev` branch:
+
+1. **Build on `dev`**: `git checkout dev` — make your changes here, not on `main`
+2. **Point an agent at `dev`**: Give an OpenClaw bot the repo URL with the `dev` branch, or use a local workspace copy
+3. **Run test prompts**: At least 2-3 realistic prompts that should trigger your skill
+4. **Verify routing**: Check that overlapping triggers route correctly — your skill activates when it should, existing skills still activate for their cases
+5. **Check scripts**: If your skill has scripts, verify they run cleanly with real API keys
+6. **Run the Verify section**: Every SKILL.md has a `## Verify` section — make sure it works as documented
+7. **PR to `main`**: Use the PR template checklist and list your test prompts + results
+
+CI validates structure automatically (frontmatter, conflicts, registry, syntax) but does not test agent behavior — that's your job.
+
+---
+
 ## Sharing skills
 
 Community skills can be published and discovered at [ClawHub](https://clawhub.com).

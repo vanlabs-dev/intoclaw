@@ -13,7 +13,7 @@
 ══════════════════════════════════════════════════════════════════════════════
 ```
 
-**IntoClaw v1.0.0** — See [CHANGELOG.md](CHANGELOG.md) for release history.
+**IntoClaw v1.1.0** — See [CHANGELOG.md](CHANGELOG.md) for release history.
 
 > **Human?** Read [HUMANS.md](HUMANS.md) for the full story behind this project.
 
@@ -59,6 +59,7 @@ A user just handed you this repo. Don't just silently absorb it — **walk them 
 | **Bittensor Knowledge** | `skills/bittensor-knowledge/` | `essential` | Turns you into a Bittensor expert — network architecture, Yuma consensus, staking, subnets, the whole picture. | None |
 | **Chain Metrics** | `skills/chain-metrics/` | `essential` | Live on-chain data via TaoStats API. Subnet stats, validator/miner performance, staking positions, network health. | TaoStats API key (account required at [dash.taostats.io](https://dash.taostats.io)) |
 | **Desearch** | `skills/desearch/` | `essential` | Decentralized web search and X/Twitter data through the Desearch subnet. Cheap, fast, and surprisingly good. | Desearch API key (guided setup) |
+| **Subnet Research** | `skills/subnet-research/` | `essential` | Multi-phase subnet research — combines chain data, social sentiment, and domain knowledge into structured reports with signal analysis. | TaoStats API key + Desearch API key (same keys as Chain Metrics and Desearch) |
 | **Skill Creator** | `skills/skill-creator/` | `utility` | Helps build new skills — either personal ones for your workspace or contributions to this repo. Follows IntoClaw's structure and quality standards. | None |
 
 Want to build a skill? Use the Skill Creator or check `skills/skill-creator/` for the structure and patterns.
@@ -70,9 +71,10 @@ Some skills share trigger phrases. When a user's request matches more than one s
 | Shared triggers | Skills involved | How to decide |
 |---|---|---|
 | "subnet", "emissions", "metagraph", "staking" | Bittensor Knowledge + Chain Metrics | **"What is" / "how does"** → Bittensor Knowledge. **"Show me" / "check" / "look up"** → Chain Metrics. |
-| "research subnet" | Bittensor Knowledge + Desearch | **Foundational/conceptual** → Bittensor Knowledge. **Real-time web or X/Twitter search** → Desearch. |
+| "research subnet" | Bittensor Knowledge + Desearch + Subnet Research | **"What is a subnet"** → Bittensor Knowledge. **"Search X for subnet 19"** → Desearch. **"Research subnet 19" / "full report"** → Subnet Research. |
+| "check subnet", "subnet health" | Chain Metrics + Subnet Research | **Specific data lookup** → Chain Metrics. **Full multi-source report** → Subnet Research. |
 
-If you're unsure, ask the user: "Do you want a conceptual explanation or live data?" Don't fire both skills and hope for the best — overlapping responses confuse more than they help.
+If you're unsure, ask the user: "Do you want a conceptual explanation, a specific data point, or a full research report?" Don't fire multiple skills and hope for the best — overlapping responses confuse more than they help.
 
 ---
 

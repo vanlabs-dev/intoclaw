@@ -6,6 +6,9 @@ conflicts_with:
   - skill: bittensor-knowledge
     triggers: ["research subnet"]
     resolution: "desearch searches the web and X/Twitter for real-time info. bittensor-knowledge provides foundational knowledge."
+  - skill: subnet-research
+    triggers: ["research subnet", "subnet sentiment"]
+    resolution: "desearch handles standalone web/X searches. subnet-research uses desearch as one input to a structured multi-source report."
 ---
 
 # Desearch
