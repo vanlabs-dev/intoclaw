@@ -261,3 +261,29 @@ export async function getSwapSimulation(
   if (alpha !== undefined) args.push("--alpha", String(alpha));
   return run<Record<string, unknown>>(args);
 }
+
+export async function getExplanation(
+  topic: string,
+): Promise<{ content: string; topic: string }> {
+  return run<{ content: string; topic: string }>(["explain", "--topic", topic]);
+}
+
+export async function getConfigAll(): Promise<Record<string, unknown>> {
+  try {
+    return await run<Record<string, unknown>>(["config", "show"]);
+  } catch {
+    const available = await isAgcliAvailable();
+    if (!available) throw new AgcliNotInstalledError();
+    const { stdout } = await runRaw(
+      ["--output", "json", "--batch", "config", "show"],
+    );
+    return { raw: stdout.trim() || "No configuration set." };
+  }
+}
+
+export async function setConfig(
+  key: string,
+  value: string,
+): Promise<Record<string, unknown>> {
+  return run<Record<string, unknown>>(["config", "set", key, value]);
+}

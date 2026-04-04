@@ -14,6 +14,9 @@ import { registerWalletTools } from "./tools/wallet.js";
 import { registerStakeTools } from "./tools/stake.js";
 import { registerTransferTools } from "./tools/transfer.js";
 import { registerConfirmTools } from "./tools/confirm.js";
+import { registerSwapTools } from "./tools/swap.js";
+import { registerExplainTools } from "./tools/explain.js";
+import { registerConfigTools } from "./tools/config.js";
 
 export function registerTools(server: McpServer): void {
   registerSubnetTools(server);
@@ -31,4 +34,7 @@ export function registerTools(server: McpServer): void {
   registerStakeTools(server);
   registerTransferTools(server);
   registerConfirmTools(server);
+  registerSwapTools(server);
+  registerExplainTools(server);
+  registerConfigTools(server);
 }
