@@ -8,6 +8,10 @@ import type {
   TaoSwapValidator,
   TaoSwapValidatorDetail,
   TaoSwapValidatorHistoryResponse,
+  TaoSwapPriceHistoryResponse,
+  TaoSwapSubnetPriceHistoryResponse,
+  TaoSwapHomeStats,
+  TaoSwapHalvingState,
 } from "../types/taoswap.js";
 
 const BASE_URL = "https://api.taoswap.org";
@@ -180,6 +184,42 @@ export class TaoSwapClient {
     return this.fetch<TaoSwapValidatorHistoryResponse>(
       `/validators/${id}/history/?days=${days}`,
     );
+  }
+
+  async getPriceHistory(
+    currency = "usd",
+    limit = 30,
+  ): Promise<TaoSwapPriceHistoryResponse> {
+    return this.fetch<TaoSwapPriceHistoryResponse>(
+      `/price-history/?currency=${currency}&limit=${limit}`,
+    );
+  }
+
+  async getSubnetPriceHistory(
+    netuid: number,
+    resolution = "D",
+    limit = 30,
+    from?: string,
+    to?: string,
+  ): Promise<TaoSwapSubnetPriceHistoryResponse> {
+    const params = new URLSearchParams({
+      netuid: String(netuid),
+      resolution,
+      limit: String(limit),
+    });
+    if (from) params.set("from", from);
+    if (to) params.set("to", to);
+    return this.fetch<TaoSwapSubnetPriceHistoryResponse>(
+      `/subnet-price-history/?${params}`,
+    );
+  }
+
+  async getHomeStats(): Promise<TaoSwapHomeStats> {
+    return this.fetch<TaoSwapHomeStats>("/home-stats/");
+  }
+
+  async getHalving(): Promise<TaoSwapHalvingState> {
+    return this.fetch<TaoSwapHalvingState>("/halving/");
   }
 }
 

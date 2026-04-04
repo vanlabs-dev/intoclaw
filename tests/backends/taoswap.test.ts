@@ -230,4 +230,55 @@ describe("TaoSwapClient", () => {
     expect(history.count).toBe(1);
     expect(history.results[0].stake_tao).toBe(1253478);
   });
+
+  const priceHistoryBody = {
+    currency: "usd",
+    results: [{ date: "2026-04-01", price: 350, volume: 1000000 }],
+  };
+
+  it("fetches price history", async () => {
+    fetchSpy.mockResolvedValueOnce(mockResponse(priceHistoryBody));
+    const data = await client.getPriceHistory("usd", 7);
+    expect(data.currency).toBe("usd");
+    expect(data.results).toHaveLength(1);
+  });
+
+  const subnetPriceBody = {
+    netuid: 18,
+    resolution: "D",
+    count: 1,
+    results: [
+      { time: 1774742400, open: 0.007, high: 0.0072, low: 0.0069, close: 0.0071, volume: 0 },
+    ],
+  };
+
+  it("fetches subnet price history", async () => {
+    fetchSpy.mockResolvedValueOnce(mockResponse(subnetPriceBody));
+    const data = await client.getSubnetPriceHistory(18, "D", 7);
+    expect(data.netuid).toBe(18);
+    expect(data.results[0].open).toBe(0.007);
+  });
+
+  it("throws TaoSwapNotFoundError on subnet price 404", async () => {
+    fetchSpy.mockResolvedValueOnce(mockResponse({}, 404));
+    await expect(client.getSubnetPriceHistory(99999)).rejects.toThrow(
+      TaoSwapNotFoundError,
+    );
+  });
+
+  it("fetches home stats", async () => {
+    fetchSpy.mockResolvedValueOnce(
+      mockResponse({ total_stake: 18993, apy_root: 10.58 }),
+    );
+    const data = await client.getHomeStats();
+    expect(data.total_stake).toBe(18993);
+  });
+
+  it("fetches halving state", async () => {
+    fetchSpy.mockResolvedValueOnce(
+      mockResponse({ id: 1, at_issuance: 10799831, at_block: 0, time_remaining: "2026-04-04T03:40:03Z" }),
+    );
+    const data = await client.getHalving();
+    expect(data.id).toBe(1);
+  });
 });

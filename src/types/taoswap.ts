@@ -285,3 +285,49 @@ export interface TaoSwapValidatorHistoryResponse {
   count: number;
   results: TaoSwapValidatorHistoryPoint[];
 }
+
+export interface TaoSwapPriceHistoryPoint {
+  date: string;
+  price: number;
+  volume: number;
+}
+
+export interface TaoSwapPriceHistoryResponse {
+  currency: string;
+  results: TaoSwapPriceHistoryPoint[];
+}
+
+export interface TaoSwapSubnetPriceCandle {
+  time: number;
+  open: number;
+  high: number;
+  low: number;
+  close: number;
+  volume: number;
+}
+
+export interface TaoSwapSubnetPriceHistoryResponse {
+  netuid: number;
+  resolution: string;
+  count: number;
+  results: TaoSwapSubnetPriceCandle[];
+}
+
+export interface TaoSwapHomeStats {
+  apy_root: number;
+  apy_best_subnet: number;
+  best_subnet_name: string;
+  count_delegators: number;
+  dominance: number;
+  fees: number;
+  total_stake_alpha: number;
+  total_stake_root: number;
+  total_stake: number;
+}
+
+export interface TaoSwapHalvingState {
+  id: number;
+  at_issuance: number;
+  at_block: number;
+  time_remaining: string;
+}
