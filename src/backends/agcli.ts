@@ -56,6 +56,15 @@ export async function isAgcliAvailable(): Promise<boolean> {
   return availableCache;
 }
 
+export async function getAgcliVersion(): Promise<string | null> {
+  try {
+    const { stdout } = await runRaw(["--version"]);
+    return stdout.trim() || null;
+  } catch {
+    return null;
+  }
+}
+
 export function _resetCacheForTesting(): void {
   availableCache = null;
 }

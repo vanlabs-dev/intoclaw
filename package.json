@@ -6,6 +6,21 @@
   "license": "MIT",
   "author": "vanlabs-dev",
   "repository": "https://github.com/vanlabs-dev/intoclaw",
+  "homepage": "https://intotao.app",
+  "bugs": "https://github.com/vanlabs-dev/intoclaw/issues",
+  "keywords": [
+    "bittensor",
+    "tao",
+    "mcp",
+    "model-context-protocol",
+    "openclaw",
+    "agent"
+  ],
+  "files": [
+    "dist",
+    "references",
+    ".env.example"
+  ],
   "engines": {
     "node": ">=22.0.0"
   },
