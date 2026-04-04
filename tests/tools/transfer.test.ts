@@ -2,7 +2,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { InMemoryTransport } from "@modelcontextprotocol/sdk/inMemory.js";
-import { registerWalletTools } from "../../src/tools/wallet.js";
+import { registerTransferTools } from "../../src/tools/transfer.js";
 
 const { mockExecFile } = vi.hoisted(() => ({
   mockExecFile: vi.fn(),
@@ -34,7 +34,7 @@ function simulateAgcli(stdout = "{}") {
 
 async function setup() {
   const server = new McpServer({ name: "test", version: "0.0.0" });
-  registerWalletTools(server);
+  registerTransferTools(server);
   const client = new Client({ name: "test-client", version: "0.0.0" });
   const [ct, st] = InMemoryTransport.createLinkedPair();
   await Promise.all([server.connect(st), client.connect(ct)]);
@@ -47,7 +47,7 @@ function parse(result: { content: unknown }) {
   );
 }
 
-describe("tao_wallet_list", () => {
+describe("tao_transfer", () => {
   let client: Client;
   let server: McpServer;
 
@@ -66,21 +66,29 @@ describe("tao_wallet_list", () => {
     vi.restoreAllMocks();
   });
 
-  it("returns wallets", async () => {
-    simulateAgcli(
-      '[{"name":"default","address":"5Gsb","path":"/home/.bittensor"}]',
-    );
-    const result = await client.callTool({ name: "tao_wallet_list" });
+  it("returns preview with operation_id", async () => {
+    simulateAgcli('{"success":true}');
+    const result = await client.callTool({
+      name: "tao_transfer",
+      arguments: {
+        dest: "5GsbTgfvgCH4xdqSkiPb7EaBBFLHjWH5vfEALhJaewSFpZX9",
+        amount: 5,
+      },
+    });
     const data = parse(result);
-    expect(data.wallets).toHaveLength(1);
+    expect(data.status).toBe("preview");
+    expect(data.needs_confirmation).toBe(true);
+    expect(data.operation_id).toBeTruthy();
+    pendingStore.removePending(data.operation_id);
   });
 
-  it("returns message when no wallets", async () => {
-    simulateAgcli("[]");
-    const result = await client.callTool({ name: "tao_wallet_list" });
+  it("rejects invalid SS58 address", async () => {
+    const result = await client.callTool({
+      name: "tao_transfer",
+      arguments: { dest: "not-valid!", amount: 5 },
+    });
     const data = parse(result);
-    expect(data.wallets).toHaveLength(0);
-    expect(data.message).toContain("No wallets found");
+    expect(data.error).toContain("Invalid address");
   });
 
   it("returns error when agcli not installed", async () => {
@@ -90,43 +98,14 @@ describe("tao_wallet_list", () => {
         return { stdin: { end: vi.fn() } };
       },
     );
-    const result = await client.callTool({ name: "tao_wallet_list" });
-    const data = parse(result);
-    expect(data.error).toContain("not installed");
-  });
-});
-
-describe("tao_wallet_create", () => {
-  let client: Client;
-  let server: McpServer;
-
-  beforeEach(async () => {
-    vi.clearAllMocks();
-    _resetCacheForTesting();
-    vi.spyOn(console, "error").mockImplementation(() => {});
-    const s = await setup();
-    client = s.client;
-    server = s.server;
-  });
-
-  afterEach(async () => {
-    await client.close();
-    await server.close();
-    vi.restoreAllMocks();
-  });
-
-  it("returns preview with hosted-platform warning", async () => {
-    simulateAgcli("{}");
     const result = await client.callTool({
-      name: "tao_wallet_create",
-      arguments: { name: "test" },
+      name: "tao_transfer",
+      arguments: {
+        dest: "5GsbTgfvgCH4xdqSkiPb7EaBBFLHjWH5vfEALhJaewSFpZX9",
+        amount: 5,
+      },
     });
     const data = parse(result);
-    expect(data.status).toBe("preview");
-    expect(data.needs_confirmation).toBe(true);
-    expect(data.warning).toContain("recovery phrase");
-    expect(data.warning).toContain("permanently lost");
-    expect(data.warning).toContain("TaoSwap.org");
-    pendingStore.removePending(data.operation_id);
+    expect(data.error).toContain("not installed");
   });
 });

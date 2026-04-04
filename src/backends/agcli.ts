@@ -64,7 +64,7 @@ export function isWalletPasswordConfigured(): boolean {
   return "AGCLI_PASSWORD" in process.env && process.env.AGCLI_PASSWORD !== "";
 }
 
-function validateAddress(address: string): void {
+export function validateAddress(address: string): void {
   if (address.startsWith("-")) {
     throw new AgcliExecutionError(
       "Invalid address format. SS58 addresses start with a number or letter.",
@@ -213,4 +213,51 @@ export async function executeAgcli<T = Record<string, unknown>>(
   args: string[],
 ): Promise<T> {
   return run<T>(args);
+}
+
+export function buildStakeAddArgs(
+  amount: number,
+  netuid: number,
+  maxSlippage?: number,
+): string[] {
+  const args = ["stake", "add", "--amount", String(amount), "--netuid", String(netuid)];
+  if (maxSlippage !== undefined) {
+    args.push("--max-slippage", String(maxSlippage));
+  }
+  return args;
+}
+
+export function buildStakeRemoveArgs(
+  amount: number,
+  netuid: number,
+): string[] {
+  return ["stake", "remove", "--amount", String(amount), "--netuid", String(netuid)];
+}
+
+export function buildStakeMoveArgs(
+  amount: number,
+  from: number,
+  to: number,
+): string[] {
+  return ["stake", "move", "--amount", String(amount), "--from", String(from), "--to", String(to)];
+}
+
+export function buildTransferArgs(dest: string, amount: number): string[] {
+  validateAddress(dest);
+  return ["transfer", "--dest", dest, "--amount", String(amount)];
+}
+
+export function buildWalletCreateArgs(name: string): string[] {
+  return ["wallet", "create", "--name", name, "--yes"];
+}
+
+export async function getSwapSimulation(
+  netuid: number,
+  tao?: number,
+  alpha?: number,
+): Promise<Record<string, unknown>> {
+  const args = ["view", "swap-sim", "--netuid", String(netuid)];
+  if (tao !== undefined) args.push("--tao", String(tao));
+  if (alpha !== undefined) args.push("--alpha", String(alpha));
+  return run<Record<string, unknown>>(args);
 }

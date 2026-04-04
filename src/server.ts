@@ -12,6 +12,8 @@ import { registerLearnTools } from "./tools/learn.js";
 import { registerBalanceTools } from "./tools/balance.js";
 import { registerWalletTools } from "./tools/wallet.js";
 import { registerStakeTools } from "./tools/stake.js";
+import { registerTransferTools } from "./tools/transfer.js";
+import { registerConfirmTools } from "./tools/confirm.js";
 
 export function registerTools(server: McpServer): void {
   registerSubnetTools(server);
@@ -27,4 +29,6 @@ export function registerTools(server: McpServer): void {
   registerBalanceTools(server);
   registerWalletTools(server);
   registerStakeTools(server);
+  registerTransferTools(server);
+  registerConfirmTools(server);
 }
