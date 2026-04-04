@@ -59,6 +59,10 @@ class PendingStore {
   _sizeForTesting(): number {
     return this.ops.size;
   }
+
+  _clearForTesting(): void {
+    this.ops.clear();
+  }
 }
 
 export const pendingStore = new PendingStore();

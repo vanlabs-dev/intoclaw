@@ -3,10 +3,7 @@ import { pendingStore } from "../../src/lib/pending.js";
 
 describe("pendingStore", () => {
   beforeEach(() => {
-    pendingStore.cleanExpired();
-    while (pendingStore._sizeForTesting() > 0) {
-      pendingStore.cleanExpired();
-    }
+    pendingStore._clearForTesting();
   });
 
   const sampleOp = {

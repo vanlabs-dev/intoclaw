@@ -17,6 +17,7 @@ import { registerConfirmTools } from "./tools/confirm.js";
 import { registerSwapTools } from "./tools/swap.js";
 import { registerExplainTools } from "./tools/explain.js";
 import { registerConfigTools } from "./tools/config.js";
+import { registerWebSearchTools } from "./tools/search-web.js";
 
 export function registerTools(server: McpServer): void {
   registerSubnetTools(server);
@@ -37,4 +38,5 @@ export function registerTools(server: McpServer): void {
   registerSwapTools(server);
   registerExplainTools(server);
   registerConfigTools(server);
+  registerWebSearchTools(server);
 }
