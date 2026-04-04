@@ -2,17 +2,11 @@ import { z } from "zod";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { taoswap, TaoSwapApiError } from "../backends/taoswap.js";
 import type { TaoSwapSubnet, TaoSwapSubnetDetail } from "../types/taoswap.js";
+import { getIntoTaoSubnetUrl, getTaoSwapUrl } from "../lib/links.js";
 
 function formatPrice(price: number): string {
   if (price < 1) return price.toFixed(5);
   return price.toFixed(2);
-}
-
-function slugify(name: string): string {
-  return name
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/^-|-$/g, "");
 }
 
 function formatSubnetSummary(s: TaoSwapSubnet) {
@@ -34,7 +28,6 @@ function formatSubnetSummary(s: TaoSwapSubnet) {
 }
 
 function formatSubnetDetail(s: TaoSwapSubnetDetail) {
-  const slug = slugify(s.name);
   return {
     netuid: s.id,
     name: s.name,
@@ -75,8 +68,8 @@ function formatSubnetDetail(s: TaoSwapSubnetDetail) {
     max_validators: s.hyperparameters?.max_validators ?? null,
     max_neurons: s.hyperparameters?.max_n ?? null,
     links: {
-      intotao: `https://intotao.app/subnets/${s.id}-${slug}`,
-      taoswap: "https://taoswap.org",
+      intotao: getIntoTaoSubnetUrl(s.id, s.name),
+      taoswap: getTaoSwapUrl(),
     },
   };
 }
