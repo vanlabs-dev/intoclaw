@@ -208,3 +208,9 @@ export async function listStakes(
   }
   return run<AgcliStakeEntry[]>(args);
 }
+
+export async function executeAgcli<T = Record<string, unknown>>(
+  args: string[],
+): Promise<T> {
+  return run<T>(args);
+}
