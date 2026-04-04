@@ -281,4 +281,70 @@ describe("TaoSwapClient", () => {
     const data = await client.getHalving();
     expect(data.id).toBe(1);
   });
+
+  it("fetches identities", async () => {
+    fetchSpy.mockResolvedValueOnce(
+      mockResponse({
+        results: { "5Abc": { ss58_address: "5Abc", name: "Test" } },
+        access_map: {},
+      }),
+    );
+    const data = await client.getIdentities();
+    expect(data.results["5Abc"].name).toBe("Test");
+  });
+
+  it("fetches events with filters", async () => {
+    fetchSpy.mockResolvedValueOnce(
+      mockResponse({
+        results: [{ block: 100, section: "SubtensorModule", method: "StakeAdded" }],
+        pagination: { page: 1, page_size: 25, has_next: false, has_previous: false },
+      }),
+    );
+    const data = await client.getEvents({ section: "SubtensorModule", method: "StakeAdded" });
+    expect(data.results).toHaveLength(1);
+    const url = fetchSpy.mock.calls[0][0] as string;
+    expect(url).toContain("section=SubtensorModule");
+    expect(url).toContain("method=StakeAdded");
+  });
+
+  it("fetches extrinsics with filters", async () => {
+    fetchSpy.mockResolvedValueOnce(
+      mockResponse({
+        results: [{ block: 200, category: "staking" }],
+        pagination: { page: 1, page_size: 50, has_next: false, has_previous: false },
+      }),
+    );
+    const data = await client.getExtrinsics({ category: "staking", page_size: 50 });
+    expect(data.results).toHaveLength(1);
+    const url = fetchSpy.mock.calls[0][0] as string;
+    expect(url).toContain("category=staking");
+  });
+
+  it("fetches extrinsic counts", async () => {
+    fetchSpy.mockResolvedValueOnce(
+      mockResponse({ staking: 100, transfers: 50, evm: 0, other: 200, total: 350 }),
+    );
+    const data = await client.getExtrinsicCounts({ netuid: 1 });
+    expect(data.total).toBe(350);
+  });
+
+  it("searches the network", async () => {
+    fetchSpy.mockResolvedValueOnce(
+      mockResponse({ count: 1, results: [{ type: "validator", name: "tao.bot" }] }),
+    );
+    const data = await client.search("tao.bot");
+    expect(data.count).toBe(1);
+    const url = fetchSpy.mock.calls[0][0] as string;
+    expect(url).toContain("q=tao.bot");
+  });
+
+  it("skips undefined params in query string", async () => {
+    fetchSpy.mockResolvedValueOnce(
+      mockResponse({ results: [], pagination: { page: 1, page_size: 25, has_next: false, has_previous: false } }),
+    );
+    await client.getEvents({ block: 100 });
+    const url = fetchSpy.mock.calls[0][0] as string;
+    expect(url).toContain("block=100");
+    expect(url).not.toContain("section");
+  });
 });

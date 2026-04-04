@@ -331,3 +331,86 @@ export interface TaoSwapHalvingState {
   at_block: number;
   time_remaining: string;
 }
+
+export interface TaoSwapIdentity {
+  ss58_address: string;
+  name: string;
+  image: string;
+  url: string;
+  github: string;
+  discord: string;
+}
+
+export interface TaoSwapIdentitiesResponse {
+  results: Record<string, TaoSwapIdentity>;
+  access_map: Record<string, string>;
+}
+
+export interface TaoSwapPagination {
+  page: number;
+  page_size: number;
+  has_next: boolean;
+  has_previous: boolean;
+  total_count?: number;
+  total_pages?: number;
+}
+
+export interface TaoSwapEvent {
+  block: number;
+  idx: number;
+  extrinsic_idx: number | null;
+  section: string;
+  method: string;
+  phase: string | null;
+  data: string;
+}
+
+export interface TaoSwapEventsResponse {
+  results: TaoSwapEvent[];
+  pagination: TaoSwapPagination;
+}
+
+export interface TaoSwapExtrinsic {
+  block: number;
+  idx: number;
+  hash: string;
+  timestamp: string;
+  module: string;
+  call: string;
+  category: string;
+  signer: string;
+  success: boolean;
+  fee_rao: number;
+  params: unknown;
+}
+
+export interface TaoSwapExtrinsicsResponse {
+  results: TaoSwapExtrinsic[];
+  pagination: TaoSwapPagination;
+}
+
+export interface TaoSwapExtrinsicCounts {
+  staking: number;
+  transfers: number;
+  evm: number;
+  other: number;
+  total: number;
+}
+
+export interface TaoSwapSearchResult {
+  type: string;
+  ss58_address?: string;
+  subnet_id?: number;
+  name?: string;
+  symbol?: string;
+  price?: number;
+  image?: string;
+  validator_hotkey?: string;
+  total_stake?: number;
+  is_coldkey?: boolean;
+}
+
+export interface TaoSwapSearchResponse {
+  count: number;
+  results: TaoSwapSearchResult[];
+}

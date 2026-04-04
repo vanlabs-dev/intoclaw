@@ -12,6 +12,11 @@ import type {
   TaoSwapSubnetPriceHistoryResponse,
   TaoSwapHomeStats,
   TaoSwapHalvingState,
+  TaoSwapIdentitiesResponse,
+  TaoSwapEventsResponse,
+  TaoSwapExtrinsicsResponse,
+  TaoSwapExtrinsicCounts,
+  TaoSwapSearchResponse,
 } from "../types/taoswap.js";
 
 const BASE_URL = "https://api.taoswap.org";
@@ -221,6 +226,66 @@ export class TaoSwapClient {
   async getHalving(): Promise<TaoSwapHalvingState> {
     return this.fetch<TaoSwapHalvingState>("/halving/");
   }
+
+  async getIdentities(): Promise<TaoSwapIdentitiesResponse> {
+    return this.fetch<TaoSwapIdentitiesResponse>("/identities/");
+  }
+
+  async getEvents(params: {
+    block?: number;
+    from_block?: number;
+    to_block?: number;
+    section?: string;
+    method?: string;
+    page?: number;
+    page_size?: number;
+  } = {}): Promise<TaoSwapEventsResponse> {
+    const qs = buildQueryString(params);
+    return this.fetch<TaoSwapEventsResponse>(`/events/${qs}`);
+  }
+
+  async getExtrinsics(params: {
+    signer?: string;
+    module?: string;
+    call?: string;
+    category?: string;
+    netuid?: number;
+    block?: number;
+    from_block?: number;
+    to_block?: number;
+    success?: boolean;
+    page?: number;
+    page_size?: number;
+  } = {}): Promise<TaoSwapExtrinsicsResponse> {
+    const qs = buildQueryString(params);
+    return this.fetch<TaoSwapExtrinsicsResponse>(`/extrinsics/${qs}`);
+  }
+
+  async getExtrinsicCounts(params: {
+    account?: string;
+    netuid?: number;
+  } = {}): Promise<TaoSwapExtrinsicCounts> {
+    const qs = buildQueryString(params);
+    return this.fetch<TaoSwapExtrinsicCounts>(`/extrinsics/counts/${qs}`);
+  }
+
+  async search(query: string): Promise<TaoSwapSearchResponse> {
+    return this.fetch<TaoSwapSearchResponse>(
+      `/search/?q=${encodeURIComponent(query)}`,
+    );
+  }
+}
+
+function buildQueryString(params: Record<string, unknown>): string {
+  const entries = Object.entries(params).filter(
+    ([, v]) => v !== undefined && v !== null,
+  );
+  if (entries.length === 0) return "";
+  const qs = new URLSearchParams();
+  for (const [k, v] of entries) {
+    qs.set(k, String(v));
+  }
+  return `?${qs}`;
 }
 
 export const taoswap = new TaoSwapClient();
