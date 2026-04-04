@@ -414,3 +414,101 @@ export interface TaoSwapSearchResponse {
   count: number;
   results: TaoSwapSearchResult[];
 }
+
+export interface TaoSwapApyBreakdown {
+  apy_7d: number;
+  apy_30d: number;
+  apy_all: number;
+}
+
+export interface TaoSwapPortfolioApyData {
+  account: string;
+  updated_at: string;
+  global: TaoSwapApyBreakdown;
+  free: TaoSwapApyBreakdown;
+  staked_tao: TaoSwapApyBreakdown;
+  staked_alpha: TaoSwapApyBreakdown;
+}
+
+export interface TaoSwapPortfolioApyResponse {
+  results: TaoSwapPortfolioApyData;
+}
+
+export interface TaoSwapPortfolioBalancePoint {
+  date: string;
+  free: number;
+  staked_tao: number;
+  staked_alpha: number;
+  staked_alpha_in_tao: number;
+  free_in_usd: string;
+  staked_tao_in_usd: string;
+  staked_alpha_in_usd: string;
+  total_tao: number;
+  total_usd: number | string;
+}
+
+export interface TaoSwapPortfolioBalanceResponse {
+  results: TaoSwapPortfolioBalancePoint[];
+}
+
+export interface TaoSwapStakeTransfer {
+  block: number;
+  timestamp: string;
+  operation: string;
+  coldkey: string;
+  hotkey: string;
+  dest_hotkey: string | null;
+  subnet_id: number;
+  dest_subnet_id: number | null;
+  amount_rao: number;
+  alpha_amount: number;
+  dest_amount_rao: number | null;
+}
+
+export interface TaoSwapTransfer {
+  block: number;
+  timestamp: string;
+  sender: string;
+  receiver: string;
+  amount_rao: number;
+}
+
+export interface TaoSwapAccountTransactionsResponse {
+  stake_transfers: TaoSwapStakeTransfer[];
+  transfers: TaoSwapTransfer[];
+}
+
+export interface TaoSwapIdleStakeSubnet {
+  netuid: number;
+  name: string;
+  symbol: string;
+  idle_alpha: number;
+  idle_alpha_tao: number;
+  avg_validator_apy: number;
+  estimated_daily_loss_tao: number;
+  delegators_affected: number;
+}
+
+export interface TaoSwapIdleStakesResponse {
+  total_idle_alpha_tao: number;
+  total_estimated_daily_loss_tao: number;
+  total_delegators_affected: number;
+  subnets: TaoSwapIdleStakeSubnet[];
+}
+
+export interface TaoSwapIdleDelegation {
+  netuid: number;
+  subnet_name: string;
+  validator_hotkey: string;
+  alpha_amount: number;
+  alpha_tao_value: number;
+  avg_validator_apy: number;
+  estimated_daily_loss_tao: number;
+}
+
+export interface TaoSwapIdleStakeLookupResponse {
+  coldkey: string;
+  total_idle_alpha_tao: number;
+  total_estimated_daily_loss_tao: number;
+  delegations: TaoSwapIdleDelegation[];
+}

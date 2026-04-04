@@ -17,11 +17,17 @@ import type {
   TaoSwapExtrinsicsResponse,
   TaoSwapExtrinsicCounts,
   TaoSwapSearchResponse,
+  TaoSwapPortfolioApyResponse,
+  TaoSwapPortfolioBalanceResponse,
+  TaoSwapAccountTransactionsResponse,
+  TaoSwapIdleStakesResponse,
+  TaoSwapIdleStakeLookupResponse,
 } from "../types/taoswap.js";
 
 const BASE_URL = "https://api.taoswap.org";
 const CACHE_TTL_MS = 60_000;
 const REQUEST_TIMEOUT_MS = 10_000;
+const SLOW_TIMEOUT_MS = 30_000;
 const RETRY_DELAY_MS = 2_000;
 
 export class TaoSwapApiError extends Error {
@@ -81,7 +87,11 @@ export class TaoSwapClient {
     this.cache.clear();
   }
 
-  async fetch<T>(path: string, bypassCache = false): Promise<T> {
+  async fetch<T>(
+    path: string,
+    bypassCache = false,
+    timeoutMs = REQUEST_TIMEOUT_MS,
+  ): Promise<T> {
     const url = `${BASE_URL}${path}`;
 
     if (!bypassCache) {
@@ -89,16 +99,20 @@ export class TaoSwapClient {
       if (cached !== undefined) return cached;
     }
 
-    const result = await this.fetchWithRetry<T>(url);
+    const result = await this.fetchWithRetry<T>(url, false, timeoutMs);
     this.setCache(url, result);
     return result;
   }
 
-  private async fetchWithRetry<T>(url: string, retried = false): Promise<T> {
+  private async fetchWithRetry<T>(
+    url: string,
+    retried = false,
+    timeoutMs = REQUEST_TIMEOUT_MS,
+  ): Promise<T> {
     let res: Response;
     try {
       const controller = new AbortController();
-      const timeout = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
+      const timeout = setTimeout(() => controller.abort(), timeoutMs);
       res = await globalThis.fetch(url, { signal: controller.signal });
       clearTimeout(timeout);
     } catch (err) {
@@ -112,7 +126,7 @@ export class TaoSwapClient {
     if (res.status === 429) {
       if (!retried) {
         await new Promise((r) => setTimeout(r, RETRY_DELAY_MS));
-        return this.fetchWithRetry<T>(url, true);
+        return this.fetchWithRetry<T>(url, true, timeoutMs);
       }
       throw new TaoSwapRateLimitError();
     }
@@ -258,7 +272,11 @@ export class TaoSwapClient {
     page_size?: number;
   } = {}): Promise<TaoSwapExtrinsicsResponse> {
     const qs = buildQueryString(params);
-    return this.fetch<TaoSwapExtrinsicsResponse>(`/extrinsics/${qs}`);
+    return this.fetch<TaoSwapExtrinsicsResponse>(
+      `/extrinsics/${qs}`,
+      false,
+      SLOW_TIMEOUT_MS,
+    );
   }
 
   async getExtrinsicCounts(params: {
@@ -266,12 +284,59 @@ export class TaoSwapClient {
     netuid?: number;
   } = {}): Promise<TaoSwapExtrinsicCounts> {
     const qs = buildQueryString(params);
-    return this.fetch<TaoSwapExtrinsicCounts>(`/extrinsics/counts/${qs}`);
+    return this.fetch<TaoSwapExtrinsicCounts>(
+      `/extrinsics/counts/${qs}`,
+      false,
+      SLOW_TIMEOUT_MS,
+    );
   }
 
   async search(query: string): Promise<TaoSwapSearchResponse> {
     return this.fetch<TaoSwapSearchResponse>(
       `/search/?q=${encodeURIComponent(query)}`,
+      false,
+      SLOW_TIMEOUT_MS,
+    );
+  }
+
+  async getPortfolioApy(
+    account: string,
+  ): Promise<TaoSwapPortfolioApyResponse> {
+    return this.fetch<TaoSwapPortfolioApyResponse>(
+      `/portfolio-apy/?account=${encodeURIComponent(account)}`,
+    );
+  }
+
+  async getPortfolioBalance(
+    account: string,
+    days = 30,
+  ): Promise<TaoSwapPortfolioBalanceResponse> {
+    return this.fetch<TaoSwapPortfolioBalanceResponse>(
+      `/portfolio-balance/?account=${encodeURIComponent(account)}&days=${days}`,
+    );
+  }
+
+  async getAccountTransactions(
+    account: string,
+    limit = 50,
+    offset = 0,
+  ): Promise<TaoSwapAccountTransactionsResponse> {
+    return this.fetch<TaoSwapAccountTransactionsResponse>(
+      `/account-transactions/?account=${encodeURIComponent(account)}&limit=${limit}&offset=${offset}`,
+      false,
+      SLOW_TIMEOUT_MS,
+    );
+  }
+
+  async getIdleStakes(): Promise<TaoSwapIdleStakesResponse> {
+    return this.fetch<TaoSwapIdleStakesResponse>("/idle-stakes/");
+  }
+
+  async getIdleStakeLookup(
+    coldkey: string,
+  ): Promise<TaoSwapIdleStakeLookupResponse> {
+    return this.fetch<TaoSwapIdleStakeLookupResponse>(
+      `/idle-stakes/lookup/?coldkey=${encodeURIComponent(coldkey)}`,
     );
   }
 }

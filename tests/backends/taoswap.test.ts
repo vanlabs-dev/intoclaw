@@ -347,4 +347,72 @@ describe("TaoSwapClient", () => {
     expect(url).toContain("block=100");
     expect(url).not.toContain("section");
   });
+
+  it("fetches portfolio APY", async () => {
+    fetchSpy.mockResolvedValueOnce(
+      mockResponse({
+        results: {
+          account: "5Gsb",
+          global: { apy_7d: 9.0 },
+          staked_tao: { apy_7d: 10.0 },
+        },
+      }),
+    );
+    const data = await client.getPortfolioApy("5Gsb");
+    expect(data.results.account).toBe("5Gsb");
+    const url = fetchSpy.mock.calls[0][0] as string;
+    expect(url).toContain("account=5Gsb");
+  });
+
+  it("fetches portfolio balance", async () => {
+    fetchSpy.mockResolvedValueOnce(
+      mockResponse({
+        results: [{ date: "2026-03-28", total_tao: 1912628 }],
+      }),
+    );
+    const data = await client.getPortfolioBalance("5Gsb", 7);
+    expect(data.results).toHaveLength(1);
+    const url = fetchSpy.mock.calls[0][0] as string;
+    expect(url).toContain("account=5Gsb");
+    expect(url).toContain("days=7");
+  });
+
+  it("fetches account transactions", async () => {
+    fetchSpy.mockResolvedValueOnce(
+      mockResponse({
+        stake_transfers: [{ block: 100, operation: "remove" }],
+        transfers: [],
+      }),
+    );
+    const data = await client.getAccountTransactions("5Gsb", 10, 0);
+    expect(data.stake_transfers).toHaveLength(1);
+    const url = fetchSpy.mock.calls[0][0] as string;
+    expect(url).toContain("account=5Gsb");
+    expect(url).toContain("limit=10");
+  });
+
+  it("fetches idle stakes", async () => {
+    fetchSpy.mockResolvedValueOnce(
+      mockResponse({
+        total_idle_alpha_tao: 106281,
+        subnets: [{ netuid: 24, name: "Quasar" }],
+      }),
+    );
+    const data = await client.getIdleStakes();
+    expect(data.total_idle_alpha_tao).toBe(106281);
+  });
+
+  it("fetches idle stake lookup", async () => {
+    fetchSpy.mockResolvedValueOnce(
+      mockResponse({
+        coldkey: "5Gsb",
+        total_idle_alpha_tao: 6.5,
+        delegations: [{ netuid: 17, subnet_name: "404-GEN" }],
+      }),
+    );
+    const data = await client.getIdleStakeLookup("5Gsb");
+    expect(data.coldkey).toBe("5Gsb");
+    const url = fetchSpy.mock.calls[0][0] as string;
+    expect(url).toContain("coldkey=5Gsb");
+  });
 });

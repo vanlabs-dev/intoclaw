@@ -7,6 +7,7 @@ import { registerNetworkTools } from "./tools/network.js";
 import { registerIdentityTools } from "./tools/identity.js";
 import { registerEventTools } from "./tools/events.js";
 import { registerSearchTools } from "./tools/search-chain.js";
+import { registerPortfolioTools } from "./tools/portfolio.js";
 
 export function registerTools(server: McpServer): void {
   registerSubnetTools(server);
@@ -17,4 +18,5 @@ export function registerTools(server: McpServer): void {
   registerIdentityTools(server);
   registerEventTools(server);
   registerSearchTools(server);
+  registerPortfolioTools(server);
 }
