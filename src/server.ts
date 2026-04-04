@@ -9,6 +9,9 @@ import { registerEventTools } from "./tools/events.js";
 import { registerSearchTools } from "./tools/search-chain.js";
 import { registerPortfolioTools } from "./tools/portfolio.js";
 import { registerLearnTools } from "./tools/learn.js";
+import { registerBalanceTools } from "./tools/balance.js";
+import { registerWalletTools } from "./tools/wallet.js";
+import { registerStakeTools } from "./tools/stake.js";
 
 export function registerTools(server: McpServer): void {
   registerSubnetTools(server);
@@ -21,4 +24,7 @@ export function registerTools(server: McpServer): void {
   registerSearchTools(server);
   registerPortfolioTools(server);
   registerLearnTools(server);
+  registerBalanceTools(server);
+  registerWalletTools(server);
+  registerStakeTools(server);
 }
