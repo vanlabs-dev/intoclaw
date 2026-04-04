@@ -148,3 +148,140 @@ export interface TaoSwapSubnetHistoryResponse {
   count: number;
   results: TaoSwapSubnetHistoryPoint[];
 }
+
+export interface TaoSwapMetagraphNeuron {
+  uid: number;
+  mechid: number;
+  stake: number;
+  vtrust: number;
+  consensus: number;
+  dividends: number;
+  incentive: number;
+  emission: number;
+  daily_rewards: number;
+  daily_rewards_alpha: number;
+  token: { symbol: string; price: number };
+  coldkey: string;
+  hotkey: string;
+  identity: TaoSwapSubnetIdentity | null;
+  ip: string;
+  port: number;
+  block_at_registration: number;
+  registration_cost: number;
+  type: string;
+  status: string;
+  is_validator: boolean;
+  is_owner: boolean;
+  updated_at_block: number;
+  last_update: number;
+  delegate_take: number;
+  childkey_take: number;
+}
+
+export interface TaoSwapMetagraphSubnet {
+  id: number;
+  name: string;
+  symbol: string;
+  price: number;
+  emission_value: number | null;
+  registration_cost: number;
+  blocks_since_epoch: number;
+  tempo: number;
+  modality: number;
+  mechanism_count: number;
+  mechanism_emission_split: unknown[];
+}
+
+export interface TaoSwapMetagraphResponse {
+  subnet: TaoSwapMetagraphSubnet;
+  count: number;
+  neurons: TaoSwapMetagraphNeuron[];
+}
+
+export interface TaoSwapValidatorIdentity {
+  name: string;
+  url: string;
+  github: string;
+  image: string;
+  discord: string;
+  description: string;
+  additional: string;
+}
+
+export interface TaoSwapValidator {
+  validator_coldkey: string;
+  validator_hotkey: string;
+  identity: TaoSwapValidatorIdentity | null;
+  take: number;
+  apy_7d: number;
+  total_stake_root: string;
+  total_stake_alpha: string;
+  total_stake: string;
+  root_weight: string;
+  count_delegators: number;
+  dominance: string;
+}
+
+export interface TaoSwapValidatorListResponse {
+  results: TaoSwapValidator[];
+}
+
+export interface TaoSwapValidatorStake {
+  subnet_id: number;
+  subnet_name: string;
+  stake: number;
+  percent: number;
+}
+
+export interface TaoSwapValidatorMonitoring {
+  subnet_id: number;
+  subnet_name: string;
+  hotkey: string;
+  uid: number;
+  ownership: string;
+  pending_activation_block: number | null;
+  stake: number;
+  vtrust: number;
+  last_update: number;
+  incentive: number;
+  emission: number;
+  dividends: number;
+  take: number | null;
+  proportion: number | null;
+  health: string;
+  health_detail: string;
+}
+
+export interface TaoSwapValidatorDetail extends TaoSwapValidator {
+  delegator_daily_earning: number;
+  validator_daily_earning: number;
+  monitoring: TaoSwapValidatorMonitoring[];
+  stakes: TaoSwapValidatorStake[];
+  history: TaoSwapValidatorDetailHistoryPoint[];
+}
+
+export interface TaoSwapValidatorDetailHistoryPoint {
+  date: string;
+  stake_tao: number;
+  root_stake_tao: number;
+  alpha_stake_tao: number;
+  delegator_count: number;
+  delegation_count: number;
+}
+
+export interface TaoSwapValidatorHistoryPoint {
+  date: string;
+  stake_tao: number;
+  root_stake_tao: number;
+  alpha_stake_tao: number;
+  alpha_stake_tao_with_slippage: number;
+  stake_tao_with_slippage: number;
+  delegator_count: number;
+  delegation_count: number;
+}
+
+export interface TaoSwapValidatorHistoryResponse {
+  hotkey: string;
+  count: number;
+  results: TaoSwapValidatorHistoryPoint[];
+}

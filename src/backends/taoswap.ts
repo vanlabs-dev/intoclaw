@@ -3,6 +3,11 @@ import type {
   TaoSwapSubnetDetail,
   TaoSwapSubnetHistoryResponse,
   TaoSwapSubnet,
+  TaoSwapMetagraphResponse,
+  TaoSwapValidatorListResponse,
+  TaoSwapValidator,
+  TaoSwapValidatorDetail,
+  TaoSwapValidatorHistoryResponse,
 } from "../types/taoswap.js";
 
 const BASE_URL = "https://api.taoswap.org";
@@ -151,6 +156,29 @@ export class TaoSwapClient {
   ): Promise<TaoSwapSubnetHistoryResponse> {
     return this.fetch<TaoSwapSubnetHistoryResponse>(
       `/subnets/${netuid}/history/?days=${days}`,
+    );
+  }
+
+  async getMetagraph(netuid: number): Promise<TaoSwapMetagraphResponse> {
+    return this.fetch<TaoSwapMetagraphResponse>(`/metagraph/${netuid}/`);
+  }
+
+  async getValidators(): Promise<TaoSwapValidator[]> {
+    const response =
+      await this.fetch<TaoSwapValidatorListResponse>("/validators/");
+    return response.results;
+  }
+
+  async getValidator(id: string): Promise<TaoSwapValidatorDetail> {
+    return this.fetch<TaoSwapValidatorDetail>(`/validators/${id}/`);
+  }
+
+  async getValidatorHistory(
+    id: string,
+    days = 30,
+  ): Promise<TaoSwapValidatorHistoryResponse> {
+    return this.fetch<TaoSwapValidatorHistoryResponse>(
+      `/validators/${id}/history/?days=${days}`,
     );
   }
 }

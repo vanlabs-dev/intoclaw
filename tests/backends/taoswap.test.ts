@@ -141,4 +141,93 @@ describe("TaoSwapClient", () => {
 
     vi.useRealTimers();
   });
+
+  const metagraphBody = {
+    subnet: { id: 18, name: "Zeus", symbol: "s", price: 0.008 },
+    count: 1,
+    neurons: [{ uid: 0, hotkey: "5Hx", type: "miner", stake: 0 }],
+  };
+
+  it("fetches metagraph", async () => {
+    fetchSpy.mockResolvedValueOnce(mockResponse(metagraphBody));
+    const meta = await client.getMetagraph(18);
+    expect(meta.subnet.id).toBe(18);
+    expect(meta.neurons).toHaveLength(1);
+  });
+
+  it("throws TaoSwapNotFoundError on metagraph 404", async () => {
+    fetchSpy.mockResolvedValueOnce(mockResponse({}, 404));
+    await expect(client.getMetagraph(99999)).rejects.toThrow(
+      TaoSwapNotFoundError,
+    );
+  });
+
+  const validatorListBody = {
+    results: [
+      {
+        validator_coldkey: "5Gsb",
+        validator_hotkey: "5E2L",
+        take: 0,
+        apy_7d: 14.0,
+        total_stake: "1252063",
+        total_stake_root: "926712",
+        total_stake_alpha: "325351",
+        dominance: "16.1",
+        count_delegators: 7204,
+      },
+    ],
+  };
+
+  it("fetches validator list", async () => {
+    fetchSpy.mockResolvedValueOnce(mockResponse(validatorListBody));
+    const validators = await client.getValidators();
+    expect(validators).toHaveLength(1);
+    expect(validators[0].validator_coldkey).toBe("5Gsb");
+  });
+
+  const validatorDetailBody = {
+    validator_coldkey: "5Gsb",
+    validator_hotkey: "5E2L",
+    take: 0,
+    apy_7d: 14.0,
+    total_stake: "1252063",
+    total_stake_root: "926712",
+    total_stake_alpha: "325351",
+    dominance: "16.1",
+    count_delegators: 7204,
+    delegator_daily_earning: 353.6,
+    validator_daily_earning: 0,
+    monitoring: [],
+    stakes: [],
+    history: [],
+  };
+
+  it("fetches validator detail", async () => {
+    fetchSpy.mockResolvedValueOnce(mockResponse(validatorDetailBody));
+    const detail = await client.getValidator("5Gsb");
+    expect(detail.validator_coldkey).toBe("5Gsb");
+    expect(detail.delegator_daily_earning).toBe(353.6);
+  });
+
+  it("throws TaoSwapNotFoundError on validator 404", async () => {
+    fetchSpy.mockResolvedValueOnce(mockResponse({}, 404));
+    await expect(client.getValidator("invalid")).rejects.toThrow(
+      TaoSwapNotFoundError,
+    );
+  });
+
+  const validatorHistoryBody = {
+    hotkey: "5E2L",
+    count: 1,
+    results: [
+      { date: "2026-03-28", stake_tao: 1253478, delegator_count: 7107 },
+    ],
+  };
+
+  it("fetches validator history", async () => {
+    fetchSpy.mockResolvedValueOnce(mockResponse(validatorHistoryBody));
+    const history = await client.getValidatorHistory("5Gsb", 7);
+    expect(history.count).toBe(1);
+    expect(history.results[0].stake_tao).toBe(1253478);
+  });
 });
