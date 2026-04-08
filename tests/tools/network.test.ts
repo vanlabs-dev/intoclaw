@@ -87,8 +87,7 @@ describe("tao_network_stats", () => {
 
     const result = await client.callTool({ name: "tao_network_stats" });
     const data = parseResult(result);
-    expect(data.taoswap_platform_stake.total_tao).toBe(18993.8);
-    expect(data.taoswap_platform_stake.note).toContain("not network-wide");
+    expect(data.taoswap_platform_stake).toBeUndefined();
     expect(data.apy_root_pct).toBe(10.58);
     expect(data.best_subnet).toBe("SN99 - Leoma");
     expect(data.halving.last_halving).toBe("December 5, 2025");
@@ -103,7 +102,7 @@ describe("tao_network_stats", () => {
 
     const result = await client.callTool({ name: "tao_network_stats" });
     const data = parseResult(result);
-    expect(data.taoswap_platform_stake.total_tao).toBe(18993.8);
+    expect(data.apy_root_pct).toBe(10.58);
     expect(data.halving.last_halving).toBe("December 5, 2025");
     expect(data.halving.total_issuance).toBeNull();
     expect(data.warnings).toHaveLength(1);
@@ -115,7 +114,7 @@ describe("tao_network_stats", () => {
 
     const result = await client.callTool({ name: "tao_network_stats" });
     const data = parseResult(result);
-    expect(data.taoswap_platform_stake).toBeUndefined();
+    expect(data.apy_root_pct).toBeUndefined();
     expect(data.halving.last_halving).toBe("December 5, 2025");
     expect(data.halving.total_issuance).toBe(10799831.02);
     expect(data.warnings).toHaveLength(1);

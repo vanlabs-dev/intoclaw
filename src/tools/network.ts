@@ -50,15 +50,8 @@ export function registerNetworkTools(server: McpServer): void {
         result.apy_root_pct = stats.apy_root;
         result.apy_best_subnet_pct = stats.apy_best_subnet;
         result.best_subnet = stats.best_subnet_name;
-        result.taoswap_delegators = stats.count_delegators;
         result.validator_dominance = stats.dominance;
         result.fees = stats.fees;
-        result.taoswap_platform_stake = {
-          note: "These are TaoSwap platform totals, not network-wide",
-          root_stake_tao: stats.total_stake_root,
-          alpha_stake_tao: stats.total_stake_alpha,
-          total_tao: stats.total_stake,
-        };
       }
 
       result.halving = {
