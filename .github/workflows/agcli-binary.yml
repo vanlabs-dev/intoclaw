@@ -21,11 +21,6 @@ jobs:
           - os: ubuntu-22.04
             target: x86_64-unknown-linux-musl
             suffix: linux-amd64
-            cross: false
-          - os: ubuntu-22.04
-            target: aarch64-unknown-linux-musl
-            suffix: linux-arm64
-            cross: true
     runs-on: ${{ matrix.os }}
     steps:
       - name: Checkout agcli
@@ -40,28 +35,9 @@ jobs:
           targets: ${{ matrix.target }}
 
       - name: Install musl tools
-        if: ${{ !matrix.cross }}
         run: |
           sudo apt-get update
           sudo apt-get install -y musl-tools
-
-      - name: Install musl cross compiler
-        if: matrix.cross
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y musl-tools gcc-aarch64-linux-gnu musl-dev
-          wget -q https://musl.cc/aarch64-linux-musl-cross.tgz
-          tar xzf aarch64-linux-musl-cross.tgz -C /opt
-          echo "/opt/aarch64-linux-musl-cross/bin" >> "$GITHUB_PATH"
-
-      - name: Configure cross-compilation linker
-        if: matrix.cross
-        run: |
-          mkdir -p .cargo
-          cat >> .cargo/config.toml <<EOF
-          [target.aarch64-unknown-linux-musl]
-          linker = "aarch64-linux-musl-gcc"
-          EOF
 
       - name: Build release binary
         run: cargo build --release --target ${{ matrix.target }}
@@ -103,8 +79,7 @@ jobs:
       - name: Prepare binaries
         run: |
           mv artifacts/agcli-linux-amd64/agcli-linux-amd64 .
-          mv artifacts/agcli-linux-arm64/agcli-linux-arm64 .
-          chmod +x agcli-linux-amd64 agcli-linux-arm64
+          chmod +x agcli-linux-amd64
 
       - name: Create or update release
         uses: softprops/action-gh-release@v2
@@ -123,6 +98,5 @@ jobs:
             This is a stopgap release. Once agcli publishes its own binaries, these will be removed.
           files: |
             agcli-linux-amd64
-            agcli-linux-arm64
           make_latest: false
           prerelease: true

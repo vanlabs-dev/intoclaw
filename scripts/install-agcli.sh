@@ -6,8 +6,7 @@ ARCH=$(uname -m)
 
 case "$ARCH" in
   x86_64)  BINARY="agcli-linux-amd64" ;;
-  aarch64) BINARY="agcli-linux-arm64" ;;
-  *) echo "Unsupported architecture: $ARCH"; exit 1 ;;
+  *) echo "Unsupported architecture: $ARCH (only x86_64 has pre-built binaries, use cargo install for other architectures)"; exit 1 ;;
 esac
 
 echo "Downloading agcli for $ARCH..."
