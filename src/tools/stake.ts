@@ -9,6 +9,7 @@ import {
   AgcliNotInstalledError,
   AgcliExecutionError,
 } from "../backends/agcli.js";
+import { taoswap } from "../backends/taoswap.js";
 import { createPreview } from "../lib/confirmation.js";
 
 function errorResult(msg: string) {
@@ -43,23 +44,70 @@ export function registerStakeTools(server: McpServer): void {
     async ({ address }) => {
       try {
         const stakes = await listStakes(address);
-        const formatted = stakes.map((s) => ({
-          hotkey: s.hotkey,
-          coldkey: s.coldkey,
-          netuid: s.netuid,
-          estimated_stake_rao: s.stake.rao,
-          estimated_stake_tao: s.stake.rao / 1e9,
-          estimated_alpha_raw: s.alpha_stake.raw,
-        }));
+        const netuids = [...new Set(stakes.map((s) => s.netuid))];
+
+        // Fetch subnet details for alpha price and name
+        const subnetMap = new Map<number, { name: string; price: number }>();
+        try {
+          const subnets = await Promise.all(
+            netuids.map((id) => taoswap.getSubnet(id).catch(() => null)),
+          );
+          for (const subnet of subnets) {
+            if (subnet) subnetMap.set(subnet.id, { name: subnet.name, price: subnet.price });
+          }
+        } catch {
+          // TaoSwap unavailable, continue without price data
+        }
+
+        // Fetch portfolio balance for total TAO estimate
+        let totalStakedTao: number | null = null;
+        let totalStakedUsd: string | null = null;
+        if (address) {
+          try {
+            const portfolio = await taoswap.getPortfolioBalance(address, 1);
+            const latest = portfolio.results[portfolio.results.length - 1];
+            if (latest) {
+              totalStakedTao = latest.staked_alpha_in_tao / 1e9;
+              totalStakedUsd = typeof latest.staked_alpha_in_usd === "string"
+                ? latest.staked_alpha_in_usd
+                : String(latest.staked_alpha_in_usd);
+            }
+          } catch {
+            // TaoSwap unavailable, continue without total
+          }
+        }
+
+        const formatted = stakes.map((s) => {
+          const alpha = s.alpha_stake.raw / 1e9;
+          const subnet = subnetMap.get(s.netuid);
+          const estimatedTao = subnet ? alpha * subnet.price : null;
+          return {
+            hotkey: s.hotkey,
+            coldkey: s.coldkey,
+            netuid: s.netuid,
+            subnet_name: subnet?.name ?? null,
+            alpha_amount: alpha,
+            estimated_tao: estimatedTao !== null ? Number(estimatedTao.toFixed(4)) : null,
+          };
+        });
+
+        const result: Record<string, unknown> = {
+          address: address ?? "default",
+          positions: formatted.length,
+          stakes: formatted,
+        };
+        if (totalStakedTao !== null) {
+          result.estimated_total_tao = Number(totalStakedTao.toFixed(4));
+          result.estimated_total_usd = totalStakedUsd;
+        } else if (address) {
+          result.estimated_total_note = "TAO estimate unavailable (TaoSwap data not available for this address)";
+        }
+
         return {
           content: [
             {
               type: "text" as const,
-              text: JSON.stringify({
-                address: address ?? "default",
-                positions: formatted.length,
-                stakes: formatted,
-              }),
+              text: JSON.stringify(result),
             },
           ],
         };

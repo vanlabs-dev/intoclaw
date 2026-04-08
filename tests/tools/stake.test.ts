@@ -5,7 +5,10 @@ import { InMemoryTransport } from "@modelcontextprotocol/sdk/inMemory.js";
 import { registerStakeTools } from "../../src/tools/stake.js";
 
 vi.mock("../../src/backends/taoswap.js", () => {
-  const mockClient = { getSubnet: vi.fn() };
+  const mockClient = {
+    getSubnet: vi.fn(),
+    getPortfolioBalance: vi.fn(),
+  };
 
   class MockTaoSwapApiError extends Error {
     status: number;
@@ -40,6 +43,7 @@ import { pendingStore } from "../../src/lib/pending.js";
 
 const mockTaoswap = taoswap as unknown as {
   getSubnet: ReturnType<typeof vi.fn>;
+  getPortfolioBalance: ReturnType<typeof vi.fn>;
 };
 
 type ExecCb = (
@@ -105,17 +109,51 @@ describe("tao_stake_list", () => {
     vi.restoreAllMocks();
   });
 
-  it("returns stake positions", async () => {
+  it("returns stake positions with alpha and estimated TAO", async () => {
     simulateAgcli(
-      '[{"hotkey":"5E2L","coldkey":"5Gsb","netuid":0,"stake":{"rao":1875072702578},"alpha_stake":{"raw":1875072702578}}]',
+      '[{"hotkey":"5E2L","coldkey":"5Gsb","netuid":18,"stake":{"rao":1875072702578},"alpha_stake":{"raw":12111060000000}}]',
     );
+    mockTaoswap.getSubnet.mockResolvedValueOnce({
+      id: 18, name: "Zeus", price: 0.008,
+    });
+    mockTaoswap.getPortfolioBalance.mockResolvedValueOnce({
+      results: [{
+        date: "2026-04-08",
+        staked_alpha_in_tao: 403800000000,
+        staked_alpha_in_usd: "137235.00",
+      }],
+    });
+
     const result = await client.callTool({
       name: "tao_stake_list",
       arguments: { address: "5GsbTgfvgCH4xdqSkiPb7EaBBFLHjWH5vfEALhJaewSFpZX9" },
     });
     const data = parse(result);
     expect(data.positions).toBe(1);
-    expect(data.stakes[0].estimated_stake_tao).toBeCloseTo(1875.07, 1);
+    expect(data.stakes[0].alpha_amount).toBeCloseTo(12111.06, 1);
+    expect(data.stakes[0].subnet_name).toBe("Zeus");
+    expect(data.stakes[0].estimated_tao).toBeCloseTo(96.89, 0);
+    expect(data.estimated_total_tao).toBeCloseTo(403.8, 1);
+    expect(data.estimated_total_usd).toBe("137235.00");
+  });
+
+  it("works when TaoSwap is unavailable", async () => {
+    simulateAgcli(
+      '[{"hotkey":"5E2L","coldkey":"5Gsb","netuid":18,"stake":{"rao":100000000},"alpha_stake":{"raw":5000000000000}}]',
+    );
+    mockTaoswap.getSubnet.mockRejectedValueOnce(new Error("timeout"));
+    mockTaoswap.getPortfolioBalance.mockRejectedValueOnce(new Error("timeout"));
+
+    const result = await client.callTool({
+      name: "tao_stake_list",
+      arguments: { address: "5GsbTgfvgCH4xdqSkiPb7EaBBFLHjWH5vfEALhJaewSFpZX9" },
+    });
+    const data = parse(result);
+    expect(data.positions).toBe(1);
+    expect(data.stakes[0].alpha_amount).toBeCloseTo(5000, 0);
+    expect(data.stakes[0].estimated_tao).toBeNull();
+    expect(data.stakes[0].subnet_name).toBeNull();
+    expect(data.estimated_total_note).toContain("unavailable");
   });
 
   it("returns error when agcli not installed", async () => {
