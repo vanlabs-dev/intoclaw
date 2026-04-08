@@ -209,9 +209,16 @@ export class TaoSwapClient {
     currency = "usd",
     limit = 30,
   ): Promise<TaoSwapPriceHistoryResponse> {
-    return this.fetch<TaoSwapPriceHistoryResponse>(
-      `/price-history/?currency=${currency}&limit=${limit}`,
+    // The API returns entries oldest-first and ignores sort/order params.
+    // Fetch all entries, reverse so newest is first, then slice to limit.
+    const response = await this.fetch<TaoSwapPriceHistoryResponse>(
+      `/price-history/?currency=${currency}`,
     );
+    const reversed = [...response.results].reverse();
+    return {
+      ...response,
+      results: reversed.slice(0, limit),
+    };
   }
 
   async getSubnetPriceHistory(

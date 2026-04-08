@@ -72,8 +72,8 @@ describe("tao_price", () => {
     mock.getPriceHistory.mockResolvedValueOnce({
       currency: "usd",
       results: [
-        { date: "2026-04-01", price: 350.5, volume: 1000000 },
-        { date: "2026-04-02", price: 355.0, volume: 1100000 },
+        { date: "2026-04-08", price: 355.0, volume: 1100000 },
+        { date: "2026-04-07", price: 350.5, volume: 1000000 },
       ],
     });
 
@@ -83,8 +83,10 @@ describe("tao_price", () => {
     });
     const data = parseResult(result);
     expect(data.currency).toBe("usd");
+    expect(data.current_price).toBe("355.00");
+    expect(data.current_date).toBe("2026-04-08");
     expect(data.data_points).toBe(2);
-    expect(data.prices[0].price_usd).toBe("350.50");
+    expect(data.prices[0].price_usd).toBe("355.00");
     expect(mock.getPriceHistory).toHaveBeenCalledWith("usd", 30);
   });
 

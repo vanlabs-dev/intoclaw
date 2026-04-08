@@ -94,8 +94,11 @@ export function registerPriceTools(server: McpServer): void {
           currency ?? "usd",
           limit ?? 30,
         );
+        const latest = data.results[0];
         const result = {
           currency: data.currency,
+          current_price: latest ? formatPrice(latest.price) : null,
+          current_date: latest?.date ?? null,
           data_points: data.results.length,
           prices: data.results.map((p) => ({
             date: p.date,
