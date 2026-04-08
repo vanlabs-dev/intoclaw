@@ -5,13 +5,6 @@ import type {
   TaoSwapHalvingState,
 } from "../types/taoswap.js";
 
-function errorResult(msg: string) {
-  return {
-    content: [{ type: "text" as const, text: JSON.stringify({ error: msg }) }],
-    isError: true,
-  };
-}
-
 export function registerNetworkTools(server: McpServer): void {
   server.registerTool(
     "tao_network_stats",
@@ -51,35 +44,29 @@ export function registerNetworkTools(server: McpServer): void {
         );
       }
 
-      if (!stats && !halving) {
-        return errorResult(
-          errors.join(" ") +
-            " Both network stats and halving data are unavailable. Try again later.",
-        );
-      }
-
       const result: Record<string, unknown> = {};
 
       if (stats) {
-        result.total_stake_tao = stats.total_stake;
-        result.root_stake_tao = stats.total_stake_root;
-        result.alpha_stake_tao = stats.total_stake_alpha;
         result.apy_root_pct = stats.apy_root;
         result.apy_best_subnet_pct = stats.apy_best_subnet;
         result.best_subnet = stats.best_subnet_name;
-        result.total_delegators = stats.count_delegators;
+        result.taoswap_delegators = stats.count_delegators;
         result.validator_dominance = stats.dominance;
         result.fees = stats.fees;
-      }
-
-      if (halving) {
-        result.halving = {
-          id: halving.id,
-          at_issuance: halving.at_issuance,
-          at_block: halving.at_block,
-          estimated_time: halving.time_remaining,
+        result.taoswap_platform_stake = {
+          note: "These are TaoSwap platform totals, not network-wide",
+          root_stake_tao: stats.total_stake_root,
+          alpha_stake_tao: stats.total_stake_alpha,
+          total_tao: stats.total_stake,
         };
       }
+
+      result.halving = {
+        last_halving: "December 5, 2025",
+        last_halving_effect: "Daily emissions reduced from 7,200 to 3,600 TAO",
+        next_halving: "Approximately December 2029",
+        total_issuance: halving?.at_issuance ?? null,
+      };
 
       if (errors.length > 0) {
         result.warnings = errors;

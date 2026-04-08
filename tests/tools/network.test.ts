@@ -87,42 +87,48 @@ describe("tao_network_stats", () => {
 
     const result = await client.callTool({ name: "tao_network_stats" });
     const data = parseResult(result);
-    expect(data.total_stake_tao).toBe(18993.8);
+    expect(data.taoswap_platform_stake.total_tao).toBe(18993.8);
+    expect(data.taoswap_platform_stake.note).toContain("not network-wide");
     expect(data.apy_root_pct).toBe(10.58);
     expect(data.best_subnet).toBe("SN99 - Leoma");
-    expect(data.halving.id).toBe(1);
-    expect(data.halving.estimated_time).toBe("2026-04-04T03:40:03Z");
+    expect(data.halving.last_halving).toBe("December 5, 2025");
+    expect(data.halving.next_halving).toContain("2029");
+    expect(data.halving.total_issuance).toBe(10799831.02);
     expect(data.warnings).toBeUndefined();
   });
 
-  it("returns partial data when halving fails", async () => {
+  it("returns ground-truth halving when halving API fails", async () => {
     mock.getHomeStats.mockResolvedValueOnce(sampleStats);
     mock.getHalving.mockRejectedValueOnce(new Error("timeout"));
 
     const result = await client.callTool({ name: "tao_network_stats" });
     const data = parseResult(result);
-    expect(data.total_stake_tao).toBe(18993.8);
-    expect(data.halving).toBeUndefined();
+    expect(data.taoswap_platform_stake.total_tao).toBe(18993.8);
+    expect(data.halving.last_halving).toBe("December 5, 2025");
+    expect(data.halving.total_issuance).toBeNull();
     expect(data.warnings).toHaveLength(1);
   });
 
-  it("returns partial data when stats fails", async () => {
+  it("returns halving data when stats fails", async () => {
     mock.getHomeStats.mockRejectedValueOnce(new Error("timeout"));
     mock.getHalving.mockResolvedValueOnce(sampleHalving);
 
     const result = await client.callTool({ name: "tao_network_stats" });
     const data = parseResult(result);
-    expect(data.total_stake_tao).toBeUndefined();
-    expect(data.halving.id).toBe(1);
+    expect(data.taoswap_platform_stake).toBeUndefined();
+    expect(data.halving.last_halving).toBe("December 5, 2025");
+    expect(data.halving.total_issuance).toBe(10799831.02);
     expect(data.warnings).toHaveLength(1);
   });
 
-  it("returns error when both fail", async () => {
+  it("returns ground-truth halving when both APIs fail", async () => {
     mock.getHomeStats.mockRejectedValueOnce(new Error("down"));
     mock.getHalving.mockRejectedValueOnce(new Error("down"));
 
     const result = await client.callTool({ name: "tao_network_stats" });
     const data = parseResult(result);
-    expect(data.error).toContain("unavailable");
+    expect(data.halving.last_halving).toBe("December 5, 2025");
+    expect(data.halving.total_issuance).toBeNull();
+    expect(data.warnings).toHaveLength(2);
   });
 });
