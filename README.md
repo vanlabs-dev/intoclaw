@@ -109,8 +109,19 @@ DESEARCH_API_KEY=your-desearch-key
 ## Requirements
 
 - Node.js 22+
-- agcli (optional, for chain write operations): `cargo install --git https://github.com/unarbos/agcli`
 - Desearch API key (optional, for search tools): https://desearch.ai
+
+### agcli (optional, for chain operations)
+
+Pre-built binaries (fastest):
+```bash
+curl -fsSL https://raw.githubusercontent.com/vanlabs-dev/intoclaw/v2/scripts/install-agcli.sh | bash
+```
+
+Or compile from source:
+```bash
+cargo install --git https://github.com/unarbos/agcli
+```
 
 ## Safety
 
